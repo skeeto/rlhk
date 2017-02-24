@@ -3,10 +3,10 @@
  * This is free and unencumbered software released into the public domain.
  *
  * Provides portable (POSIX and Win32) functions for efficiently
- * rendering 16 colors of text to a terminal / console. The display is
- * a fixed, compile-time size of RLHK_TUI_WIDTH by RLHK_TUI_HEIGHT,
- * which you may define to your own values before including this
- * module.
+ * rendering 16 colors of text to a terminal / console. No third-party
+ * libraries, such as ncurses, are required. The display is a fixed,
+ * compile-time size of RLHK_TUI_WIDTH by RLHK_TUI_HEIGHT, which you
+ * may define to your own values before including this module.
  *
  * For POSIX systems, the terminal is assumed to support ANSI escapes
  * and UTF-8 encoding.
@@ -150,7 +150,6 @@ static unsigned char rlhk_tui_olda[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
 /* Characters to be written on the next flush. */
 static unsigned short rlhk_tui_bufc[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
 static unsigned char rlhk_tui_bufa[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
-
 
 RLHK_TUI_API
 void
