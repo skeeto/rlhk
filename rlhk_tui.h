@@ -239,15 +239,20 @@ rlhk_tui_size(int *width, int *height)
 static CHAR_INFO rlhk_tui_buf[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
 static HANDLE rlhk_tui_out;
 static HANDLE rlhk_tui_in;
+static DWORD rlhk_tui_mode_orig;
 
 RLHK_TUI_API
 void
 rlhk_tui_init(void)
 {
     CONSOLE_CURSOR_INFO info = {100, FALSE};
+    DWORD mode;
     rlhk_tui_out = GetStdHandle(STD_OUTPUT_HANDLE);
     rlhk_tui_in  = GetStdHandle(STD_INPUT_HANDLE);
     SetConsoleCursorInfo(rlhk_tui_out, &info);
+    GetConsoleMode(rlhk_tui_in, &rlhk_tui_mode_orig);
+    mode = rlhk_tui_mode_orig & ~ENABLE_PROCESSED_INPUT;
+    SetConsoleMode(rlhk_tui_in, mode);
 }
 
 RLHK_TUI_API
@@ -258,6 +263,7 @@ rlhk_tui_release(void)
     COORD coord = {0, RLHK_TUI_HEIGHT};
     SetConsoleCursorInfo(rlhk_tui_out, &info);
     SetConsoleCursorPosition(rlhk_tui_out, coord);
+    SetConsoleMode(rlhk_tui_in, rlhk_tui_mode_orig);
 }
 
 RLHK_TUI_API
@@ -284,29 +290,31 @@ int
 rlhk_tui_getch(void)
 {
     int result = getch();
-    if (result != 0xE0 && result != 0x00) {
+    if (result == 3) {
+        return RLHK_TUI_VK_SIGINT;
+    } else if (result != 0xE0 && result != 0x00) {
         return result;
     } else {
         result = getch();
         switch (result) {
-        case 72:
-            return RLHK_TUI_VK_U;
-        case 80:
-            return RLHK_TUI_VK_D;
-        case 75:
-            return RLHK_TUI_VK_L;
-        case 77:
-            return RLHK_TUI_VK_R;
-        case 71:
-            return RLHK_TUI_VK_UL;
-        case 73:
-            return RLHK_TUI_VK_UR;
-        case 79:
-            return RLHK_TUI_VK_DL;
-        case 81:
-            return RLHK_TUI_VK_DR;
-        default:
-            return result + 256;
+            case 72:
+                return RLHK_TUI_VK_U;
+            case 80:
+                return RLHK_TUI_VK_D;
+            case 75:
+                return RLHK_TUI_VK_L;
+            case 77:
+                return RLHK_TUI_VK_R;
+            case 71:
+                return RLHK_TUI_VK_UL;
+            case 73:
+                return RLHK_TUI_VK_UR;
+            case 79:
+                return RLHK_TUI_VK_DL;
+            case 81:
+                return RLHK_TUI_VK_DR;
+            default:
+                return result + 256;
         }
     }
 }
