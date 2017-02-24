@@ -19,14 +19,15 @@
 #define RLHK_TUI_BB (1u << 6)  /* background blue      */
 #define RLHK_TUI_BH (1u << 7)  /* background highlight */
 
-#define RLHK_TUI_VK_U  321     /* up         */
-#define RLHK_TUI_VK_D  322     /* down       */
-#define RLHK_TUI_VK_L  324     /* left       */
-#define RLHK_TUI_VK_R  323     /* right      */
-#define RLHK_TUI_VK_UL 305     /* up-left    */
-#define RLHK_TUI_VK_DL 308     /* down-left  */
-#define RLHK_TUI_VK_UR 309     /* up-right   */
-#define RLHK_TUI_VK_DR 310     /* down-right */
+#define RLHK_TUI_VK_U       321     /* up         */
+#define RLHK_TUI_VK_D       322     /* down       */
+#define RLHK_TUI_VK_L       324     /* left       */
+#define RLHK_TUI_VK_R       323     /* right      */
+#define RLHK_TUI_VK_UL      305     /* up-left    */
+#define RLHK_TUI_VK_DL      308     /* down-left  */
+#define RLHK_TUI_VK_UR      309     /* up-right   */
+#define RLHK_TUI_VK_DR      310     /* down-right */
+#define RLHK_TUI_VK_SIGINT  400     /* ctrl-c     */
 
 RLHK_TUI_API
 void rlhk_tui_init(void);
@@ -146,7 +147,7 @@ rlhk_tui_flush(void)
 {
     int x, y;
     static unsigned char buf[RLHK_TUI_HEIGHT * RLHK_TUI_WIDTH *
-                             (9 + 3 + 4 + 10)];
+                             (9 + 3 + 4 + 10) / 2];
     unsigned char *p = buf;
     unsigned last_a = -1u;
     int cx = -1;
@@ -205,11 +206,8 @@ rlhk_tui_getch(void)
         (void)read(STDIN_FILENO, code, sizeof(code));
         return code[1] + 256;
     } else {
-        if (c == 3) {
-            /* TODO: SIGINT */
-            rlhk_tui_release();
-            exit(EXIT_FAILURE);
-        }
+        if (c == 3)
+            return RLHK_TUI_VK_SIGINT;
         return c;
     }
 }

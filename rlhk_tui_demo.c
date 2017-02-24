@@ -79,6 +79,7 @@ main(void)
             case 'n':
                 dx = 1; dy = 1;
                 break;
+            case RLHK_TUI_VK_SIGINT:
             case 'q':
                 running = 0;
                 break;
