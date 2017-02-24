@@ -26,7 +26,8 @@ map_generate(void)
     unsigned long rng[1];
     int x, y, i;
 
-    rlhk_rand_entropy(rng, 4);
+    if (!rlhk_rand_entropy(rng, 4))
+        abort();
 
     memset(game_map, 1, sizeof(game_map));
     for (i = 0; i < RLHK_TUI_WIDTH * RLHK_TUI_HEIGHT / 4; i++) {
