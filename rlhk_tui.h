@@ -54,10 +54,12 @@ void rlhk_tui_size(int *width, int *height);
 #if defined(__unix__) || defined(__unix) || defined(__APPLE__)
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <unistd.h>
 #include <termios.h>
 #include <sys/ioctl.h>
 
+#define RLHK_TUI_DIRTY_BIT (sizeof(unsigned long) * CHAR_BIT)
 static unsigned short rlhk_tui_bufc[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
 static unsigned char rlhk_tui_bufa[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
 static unsigned long rlhk_tui_dirty[RLHK_TUI_HEIGHT * RLHK_TUI_WIDTH];
@@ -85,7 +87,7 @@ void
 rlhk_tui_release(void)
 {
     tcsetattr(STDIN_FILENO, TCSANOW, &rlhk_tui_termios_orig);
-    write(STDIN_FILENO, "\x1b[?25h\x1b[m\n", 10);
+    write(STDIN_FILENO, "\x1b[0m\x1b[?25h\x1b[m\n", 14);
 }
 
 RLHK_TUI_API
@@ -95,8 +97,7 @@ rlhk_tui_putc(int x, int y, unsigned c, unsigned attr)
     int i = y * RLHK_TUI_WIDTH + x;
     rlhk_tui_bufc[y][x] = c;
     rlhk_tui_bufa[y][x] = attr;
-    rlhk_tui_dirty[i / (sizeof(unsigned long) * 8)] |=
-        1UL << (i % (sizeof(unsigned long) * 8));
+    rlhk_tui_dirty[i / RLHK_TUI_DIRTY_BIT] |= 1UL << (i % RLHK_TUI_DIRTY_BIT);
 }
 
 static int
@@ -104,20 +105,29 @@ rlhk_tui_ucs2_to_8(unsigned ucs2, unsigned char *utf8)
 {
     if (ucs2 < 0x80) {
         utf8[0] = ucs2;
-        utf8[1] = 0;
         return 1;
     }
     if (ucs2 < 0x800) {
         utf8[0] = 0xc0 | ((ucs2 & 0x07c0) >> 6);
         utf8[1] = 0x80 |  (ucs2 & 0x003f);
-        utf8[2] = 0;
         return 2;
     }
     utf8[0] = 0xe0 | ((ucs2 & 0xf000) >> 12);
     utf8[1] = 0x80 | ((ucs2 & 0x0fc0) >>  6);
     utf8[2] = 0x80 |  (ucs2 & 0x003f);
-    utf8[3] = 0;
     return 3;
+}
+
+static unsigned char *
+rlhk_tui_itoa(unsigned char *p, int v)
+{
+    int len = !v;
+    int i;
+    for (i = v; i; i /= 10)
+        len++;
+    for (i = len - 1; i >= 0; i--, v /= 10)
+        p[i] = v % 10 + '0';
+    return p + len;
 }
 
 RLHK_TUI_API
@@ -127,20 +137,44 @@ rlhk_tui_flush(void)
     int x, y;
     static unsigned char buf[RLHK_TUI_HEIGHT * RLHK_TUI_WIDTH *
                              (9 + 3 + 4 + 10)];
-    unsigned char *p = buf + 3;
-    buf[0] = 0x1b;
-    buf[1] = '[';
-    buf[2] = 'H';
+    unsigned char *p = buf;
+    unsigned last_a = -1u;
+    int cx = -1;
+    int cy = -1;
     for (y = 0; y < RLHK_TUI_HEIGHT; y++) {
         for (x = 0; x < RLHK_TUI_WIDTH; x++) {
             int i = y * RLHK_TUI_WIDTH + x;
-            if (rlhk_tui_dirty[i / (sizeof(unsigned long) * 8)] &
-                1UL << (i % (sizeof(unsigned long) * 8))) {
-
-                /* TODO: color */
-                /* TODO: efficient */
+            int e = i / RLHK_TUI_DIRTY_BIT;
+            unsigned long b = 1UL << (i % RLHK_TUI_DIRTY_BIT);
+            if (rlhk_tui_dirty[e] & b) {
                 unsigned c = rlhk_tui_bufc[y][x];
+                unsigned a = rlhk_tui_bufa[y][x];
+
+                /* Move to location. */
+                if (x != cx || y != cy) {
+                    *p++ = 0x1b;
+                    *p++ = '[';
+                    p = rlhk_tui_itoa(p, y + 1);
+                    *p++ = ';';
+                    p = rlhk_tui_itoa(p, x + 1);
+                    *p++ = 'H';
+                    last_a = -1u;
+                }
+                /* Apply colors. */
+                if (a != last_a) {
+                    int fg = ((a >> 0) & 0x07) + (a & 0x08 ? 90  : 30);
+                    int bg = ((a >> 4) & 0x07) + (a & 0x80 ? 100 : 40);
+                    *p++ = 0x1b;
+                    *p++ = '[';
+                    p = rlhk_tui_itoa(p, fg);
+                    *p++ = ';';
+                    p = rlhk_tui_itoa(p, bg);
+                    *p++ = 'm';
+                    last_a = a;
+                }
                 p += rlhk_tui_ucs2_to_8(c, p);
+                cx = x + 1;
+                cy = y;
             }
         }
     }
