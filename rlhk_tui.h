@@ -17,6 +17,15 @@
  * To get the implementation, define RLHK_TUI_IMPLEMENTATION before
  * including this file. You may define your own RLHK_TUI_API to
  * control the linkage and/or visibility of the API.
+ *
+ * Functions:
+ *   - rlhk_tui_init
+ *   - rlhk_tui_release
+ *   - rlhk_tui_putc
+ *   - rlhk_tui_flush
+ *   - rlhk_tui_getch
+ *   - rlhk_tui_title
+ *   - rlhk_tui_size
  */
 #ifndef RLHK_TUI_H
 #define RLHK_TUI_H
