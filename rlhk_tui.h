@@ -167,6 +167,7 @@ rlhk_tui_init(void)
     raw.c_cflag |= CS8;
     tcsetattr(STDIN_FILENO, TCSANOW, &raw);
     write(STDIN_FILENO, "\x1b[?25l", 6);
+    memset(rlhk_tui_oldc, 0, sizeof(rlhk_tui_oldc));
 }
 
 RLHK_TUI_API
@@ -239,7 +240,7 @@ rlhk_tui_flush(void)
             unsigned char *oa = &rlhk_tui_olda[y][x];
             unsigned c = rlhk_tui_bufc[y][x];
             unsigned a = rlhk_tui_bufa[y][x];
-            if (*oc != c || *oa != c) {
+            if (*oc != c || *oa != a) {
                 /* Move to location. */
                 if (x != cx || y != cy) {
                     *p++ = 0x1b;
