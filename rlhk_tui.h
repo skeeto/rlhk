@@ -257,7 +257,9 @@ void
 rlhk_tui_release(void)
 {
     CONSOLE_CURSOR_INFO info = {100, TRUE};
+    COORD coord = {0, RLHK_TUI_HEIGHT};
     SetConsoleCursorInfo(rlhk_tui_out, &info);
+    SetConsoleCursorPosition(rlhk_tui_out, coord);
 }
 
 RLHK_TUI_API
