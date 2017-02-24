@@ -137,16 +137,20 @@ void rlhk_tui_size(int *width, int *height);
 #if defined(__unix__) || defined(__unix) || defined(__APPLE__)
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 #include <unistd.h>
 #include <termios.h>
 #include <sys/ioctl.h>
 
-#define RLHK_TUI_DIRTY_BIT (sizeof(unsigned long) * CHAR_BIT)
+struct termios rlhk_tui_termios_orig;
+
+/* The last written display. */
+static unsigned short rlhk_tui_oldc[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
+static unsigned char rlhk_tui_olda[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
+
+/* Characters to be written on the next flush. */
 static unsigned short rlhk_tui_bufc[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
 static unsigned char rlhk_tui_bufa[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
-static unsigned long rlhk_tui_dirty[RLHK_TUI_HEIGHT * RLHK_TUI_WIDTH];
-struct termios rlhk_tui_termios_orig;
+
 
 RLHK_TUI_API
 void
@@ -184,10 +188,8 @@ RLHK_TUI_API
 void
 rlhk_tui_putc(int x, int y, unsigned c, unsigned attr)
 {
-    int i = y * RLHK_TUI_WIDTH + x;
     rlhk_tui_bufc[y][x] = c;
     rlhk_tui_bufa[y][x] = attr;
-    rlhk_tui_dirty[i / RLHK_TUI_DIRTY_BIT] |= 1UL << (i % RLHK_TUI_DIRTY_BIT);
 }
 
 static int
@@ -233,13 +235,11 @@ rlhk_tui_flush(void)
     int cy = -1;
     for (y = 0; y < RLHK_TUI_HEIGHT; y++) {
         for (x = 0; x < RLHK_TUI_WIDTH; x++) {
-            int i = y * RLHK_TUI_WIDTH + x;
-            int e = i / RLHK_TUI_DIRTY_BIT;
-            unsigned long b = 1UL << (i % RLHK_TUI_DIRTY_BIT);
-            if (rlhk_tui_dirty[e] & b) {
-                unsigned c = rlhk_tui_bufc[y][x];
-                unsigned a = rlhk_tui_bufa[y][x];
-
+            unsigned short *oc = &rlhk_tui_oldc[y][x];
+            unsigned char *oa = &rlhk_tui_olda[y][x];
+            unsigned c = rlhk_tui_bufc[y][x];
+            unsigned a = rlhk_tui_bufa[y][x];
+            if (*oc != c || *oa != c) {
                 /* Move to location. */
                 if (x != cx || y != cy) {
                     *p++ = 0x1b;
@@ -265,11 +265,12 @@ rlhk_tui_flush(void)
                 p += rlhk_tui_ucs2_to_8(c, p);
                 cx = x + 1;
                 cy = y;
+                *oc = c;
+                *oa = a;
             }
         }
     }
     write(STDOUT_FILENO, buf, p - buf);
-    memset(rlhk_tui_dirty, 0, sizeof(rlhk_tui_dirty));
 }
 
 RLHK_TUI_API
