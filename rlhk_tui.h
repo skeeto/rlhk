@@ -100,35 +100,24 @@ rlhk_tui_putc(int x, int y, unsigned c, unsigned attr)
 }
 
 static int
-rlhk_tui_utf32_to_8(unsigned long utf32, unsigned char *utf8)
+rlhk_tui_ucs2_to_8(unsigned ucs2, unsigned char *utf8)
 {
-    if (utf32 < 0x80) {
-        utf8[0] = (unsigned char)utf32;
+    if (ucs2 < 0x80) {
+        utf8[0] = ucs2;
         utf8[1] = 0;
         return 1;
     }
-    if (utf32 < 0x800) {
-        utf8[0] = 0xc0 | ((utf32 & 0x07c0) >> 6);
-        utf8[1] = 0x80 |  (utf32 & 0x003f);
+    if (ucs2 < 0x800) {
+        utf8[0] = 0xc0 | ((ucs2 & 0x07c0) >> 6);
+        utf8[1] = 0x80 |  (ucs2 & 0x003f);
         utf8[2] = 0;
         return 2;
     }
-    if (utf32 < 0x10000) {
-        utf8[0] = 0xe0 | ((utf32 & 0xf000) >> 12);
-        utf8[1] = 0x80 | ((utf32 & 0x0fc0) >>  6);
-        utf8[2] = 0x80 |  (utf32 & 0x003f);
-        utf8[3] = 0;
-        return 3;
-    }
-    if (utf32 < 0x110000) {
-        utf8[0] = 0xf0 | ((utf32 & 0x1c0000) >> 18);
-        utf8[1] = 0x80 | ((utf32 & 0x03f000) >> 12);
-        utf8[2] = 0x80 | ((utf32 & 0x000fc0) >>  6);
-        utf8[3] = 0x80 |  (utf32 & 0x00003f);
-        utf8[4] = 0;
-        return 4;
-    }
-    return 0; /* invalid utf32 */
+    utf8[0] = 0xe0 | ((ucs2 & 0xf000) >> 12);
+    utf8[1] = 0x80 | ((ucs2 & 0x0fc0) >>  6);
+    utf8[2] = 0x80 |  (ucs2 & 0x003f);
+    utf8[3] = 0;
+    return 3;
 }
 
 RLHK_TUI_API
@@ -137,7 +126,7 @@ rlhk_tui_flush(void)
 {
     int x, y;
     static unsigned char buf[RLHK_TUI_HEIGHT * RLHK_TUI_WIDTH *
-                             (9 + 4 + 4 + 10)];
+                             (9 + 3 + 4 + 10)];
     unsigned char *p = buf + 3;
     buf[0] = 0x1b;
     buf[1] = '[';
@@ -151,7 +140,7 @@ rlhk_tui_flush(void)
                 /* TODO: color */
                 /* TODO: efficient */
                 unsigned c = rlhk_tui_bufc[y][x];
-                p += rlhk_tui_utf32_to_8(c, p);
+                p += rlhk_tui_ucs2_to_8(c, p);
             }
         }
     }
