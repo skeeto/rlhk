@@ -1,3 +1,23 @@
+/* Roguelike Header Kit : Text User Interface
+ *
+ * This is free and unencumbered software released into the public domain.
+ *
+ * Provides portable (POSIX and Win32) functions for efficiently
+ * rendering 16 colors of text to a terminal / console. The display is
+ * a fixed, compile-time size of RLHK_TUI_WIDTH by RLHK_TUI_HEIGHT,
+ * which you may define to your own values before including this
+ * module.
+ *
+ * For POSIX systems, the terminal is assumed to support ANSI escapes
+ * and UTF-8 encoding.
+ *
+ * This library does not require nor use stdio.h. This may be useful
+ * in some circumstances, such as builds with a static libc.
+ *
+ * To get the implementation, define RLHK_TUI_IMPLEMENTATION before
+ * including this file. You may define your own RLHK_TUI_API to
+ * control the linkage and/or visibility of the API.
+ */
 #ifndef RLHK_TUI_H
 #define RLHK_TUI_H
 
@@ -10,6 +30,25 @@
 #  define RLHK_TUI_HEIGHT 24
 #endif
 
+/**
+ * Must be called before most functions.
+ *
+ * Both rlhk_tui_title() and rlhk_tui_size() may be called without an
+ * initialized display.
+ *
+ * To properly restore the terminal/console state, you must call
+ * rlhk_tui_release() before exiting the process. This function may be
+ * called again after rlhk_tui_release().
+ */
+RLHK_TUI_API
+void rlhk_tui_init(void);
+
+/**
+ * Reverse of rlhk_tui_init(), restoring the terminal / console.
+ */
+RLHK_TUI_API
+void rlhk_tui_release(void);
+
 #define RLHK_TUI_FR (1u << 0)  /* foreground red       */
 #define RLHK_TUI_FG (1u << 1)  /* foreground green     */
 #define RLHK_TUI_FB (1u << 2)  /* foreground blue      */
@@ -19,6 +58,33 @@
 #define RLHK_TUI_BB (1u << 6)  /* background blue      */
 #define RLHK_TUI_BH (1u << 7)  /* background highlight */
 
+/**
+ * Put a 16-bit character at x, y with specific fore/background color.
+ *
+ * The limiting factor is the Win32 console, which can only display a
+ * small subset of the BMP. Choose your characters wisely.
+ *
+ * An attribute is an 8-bit value composed of ORing the defined values
+ * above. There are 16 available colors each for foreground and
+ * background. The specific channel values (i.e. shades) are
+ * determined by the terminal / console configuration.
+ *
+ * Characters are not immediately visible on the display. Instead they
+ * are written to a background buffer, which is written to the display
+ * with rlhk_tui_flush().
+ */
+RLHK_TUI_API
+void rlhk_tui_putc(int x, int y, unsigned c, unsigned attr);
+
+/**
+ * Flush all changes to the display.
+ *
+ * Calls to rlhk_tui_putc() are not visible until this call. You
+ * probably want to call this function before rlhk_tui_getch().
+ */
+RLHK_TUI_API
+void rlhk_tui_flush(void);
+
 #define RLHK_TUI_VK_U       321     /* up         */
 #define RLHK_TUI_VK_D       322     /* down       */
 #define RLHK_TUI_VK_L       324     /* left       */
@@ -27,29 +93,33 @@
 #define RLHK_TUI_VK_DL      308     /* down-left  */
 #define RLHK_TUI_VK_UR      309     /* up-right   */
 #define RLHK_TUI_VK_DR      310     /* down-right */
-#define RLHK_TUI_VK_SIGINT  400     /* ctrl-c     */
+#define RLHK_TUI_VK_SIGINT  3       /* ctrl-c     */
 
-RLHK_TUI_API
-void rlhk_tui_init(void);
-
-RLHK_TUI_API
-void rlhk_tui_release(void);
-
-RLHK_TUI_API
-void rlhk_tui_putc(int x, int y, unsigned c, unsigned attr);
-
-RLHK_TUI_API
-void rlhk_tui_flush(void);
-
+/**
+ * Blocks and returns a key press from the user.
+ *
+ * Limited to ASCII characters, but some special inputs, such as
+ * directional arrow keys, have the above definitions.
+ */
 RLHK_TUI_API
 int rlhk_tui_getch(void);
 
+/**
+ * Sets the terminal / console window title.
+ */
 RLHK_TUI_API
 void rlhk_tui_title(const char *);
 
+/**
+ * Gets the current terminal / console size.
+ *
+ * Useful for checking the size of the display in order to abort or
+ * wait until the screen is large enough.
+ */
 RLHK_TUI_API
 void rlhk_tui_size(int *width, int *height);
 
+/* Implementation */
 #ifdef RLHK_TUI_IMPLEMENTATION
 
 #define RLHK_TUI_STRX(x) #x
@@ -206,8 +276,6 @@ rlhk_tui_getch(void)
         (void)read(STDIN_FILENO, code, sizeof(code));
         return code[1] + 256;
     } else {
-        if (c == 3)
-            return RLHK_TUI_VK_SIGINT;
         return c;
     }
 }
@@ -290,9 +358,7 @@ int
 rlhk_tui_getch(void)
 {
     int result = getch();
-    if (result == 3) {
-        return RLHK_TUI_VK_SIGINT;
-    } else if (result != 0xE0 && result != 0x00) {
+    if (result != 0xE0 && result != 0x00) {
         return result;
     } else {
         result = getch();
