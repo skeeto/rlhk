@@ -51,6 +51,9 @@ void rlhk_tui_size(int *width, int *height);
 
 #ifdef RLHK_TUI_IMPLEMENTATION
 
+#define RLHK_TUI_STRX(x) #x
+#define RLHK_TUI_STR(x) RLHK_TUI_STRX(x)
+
 #if defined(__unix__) || defined(__unix) || defined(__APPLE__)
 #include <stdlib.h>
 #include <string.h>
@@ -86,8 +89,15 @@ RLHK_TUI_API
 void
 rlhk_tui_release(void)
 {
+    char finish[] =
+        /* Restore cursor visibility. */
+        "\x1b[?25h"
+        /* Move cursor just outside drawing region. */
+        "\x1b[" RLHK_TUI_STR(RLHK_TUI_HEIGHT) ";0H"
+        /* Disable color/style. */
+        "\x1b[0m\n";
     tcsetattr(STDIN_FILENO, TCSANOW, &rlhk_tui_termios_orig);
-    write(STDIN_FILENO, "\x1b[0m\x1b[?25h\x1b[m\n", 14);
+    write(STDIN_FILENO, finish, sizeof(finish) - 1);
 }
 
 RLHK_TUI_API
