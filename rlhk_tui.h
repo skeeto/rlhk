@@ -4,9 +4,10 @@
  *
  * Provides portable (POSIX and Win32) functions for efficiently
  * rendering 16 colors of text to a terminal / console. No third-party
- * libraries, such as ncurses, are required. The display is a fixed,
- * compile-time size of RLHK_TUI_WIDTH by RLHK_TUI_HEIGHT, which you
- * may define to your own values before including this module.
+ * libraries, such as ncurses, are required. The maximum display size
+ * is determined by the compile-time values RLHK_TUI_MAX_WIDTH and
+ * RLHK_TUI_MAX_HEIGHT. You may define to your own before including
+ * this module.
  *
  * For POSIX systems, the terminal is assumed to support ANSI escapes
  * and UTF-8 encoding.
@@ -34,13 +35,16 @@
 #  define RLHK_TUI_API
 #endif
 
-#ifndef RLHK_TUI_WIDTH
-#  define RLHK_TUI_WIDTH  80
-#  define RLHK_TUI_HEIGHT 24
+#ifndef RLHK_TUI_MAX_WIDTH
+#  define RLHK_TUI_MAX_WIDTH  80
+#endif
+
+#ifndef RLHK_TUI_MAX_HEIGHT
+#  define RLHK_TUI_MAX_HEIGHT 24
 #endif
 
 /**
- * Must be called before most functions.
+ * Must be called before most TUI functions.
  *
  * Both rlhk_tui_title() and rlhk_tui_size() may be called without an
  * initialized display.
@@ -48,9 +52,12 @@
  * To properly restore the terminal/console state, you must call
  * rlhk_tui_release() before exiting the process. This function may be
  * called again after rlhk_tui_release().
+ *
+ * The maximum width and height are determined by RLHK_TUI_MAX_WIDTH
+ * and RLHK_TUI_MAX_HEIGHT.
  */
 RLHK_TUI_API
-void rlhk_tui_init(void);
+void rlhk_tui_init(int width, int height);
 
 /**
  * Reverse of rlhk_tui_init(), restoring the terminal / console.
@@ -122,8 +129,9 @@ void rlhk_tui_title(const char *);
 /**
  * Gets the current terminal / console size.
  *
- * Useful for checking the size of the display in order to abort or
- * wait until the screen is large enough.
+ * Useful for checking the size of the display in order to dynamically
+ * scale the display, abort with an error for being too small, or to
+ * wait until the screen is resized.
  */
 RLHK_TUI_API
 void rlhk_tui_size(int *width, int *height);
@@ -131,8 +139,8 @@ void rlhk_tui_size(int *width, int *height);
 /* Implementation */
 #ifdef RLHK_TUI_IMPLEMENTATION
 
-#define RLHK_TUI_STRX(x) #x
-#define RLHK_TUI_STR(x) RLHK_TUI_STRX(x)
+static int rlhk_tui_width;
+static int rlhk_tui_height;
 
 #if defined(__unix__) || defined(__unix) || defined(__APPLE__)
 #include <stdlib.h>
@@ -144,19 +152,36 @@ void rlhk_tui_size(int *width, int *height);
 struct termios rlhk_tui_termios_orig;
 
 /* The last written display. */
-static unsigned short rlhk_tui_oldc[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
-static unsigned char rlhk_tui_olda[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
+static unsigned short rlhk_tui_oldc[RLHK_TUI_MAX_HEIGHT][RLHK_TUI_MAX_WIDTH];
+static unsigned char rlhk_tui_olda[RLHK_TUI_MAX_HEIGHT][RLHK_TUI_MAX_WIDTH];
 
 /* Characters to be written on the next flush. */
-static unsigned short rlhk_tui_bufc[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
-static unsigned char rlhk_tui_bufa[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
+static unsigned short rlhk_tui_bufc[RLHK_TUI_MAX_HEIGHT][RLHK_TUI_MAX_WIDTH];
+static unsigned char rlhk_tui_bufa[RLHK_TUI_MAX_HEIGHT][RLHK_TUI_MAX_WIDTH];
+
+static unsigned char *
+rlhk_tui_itoa(unsigned char *p, int v)
+{
+    int len = !v;
+    int i;
+    for (i = v; i; i /= 10)
+        len++;
+    for (i = len - 1; i >= 0; i--, v /= 10)
+        p[i] = v % 10 + '0';
+    return p + len;
+}
 
 RLHK_TUI_API
 void
-rlhk_tui_init(void)
+rlhk_tui_init(int width, int height)
 {
     struct termios raw;
-    write(STDOUT_FILENO, "\x1b[2J\x1b[H", 7);
+    char init[] = {
+        "\x1b[2J"   /* Clear the screen. */
+        "\x1b[?25l" /* Hide the cursor. */
+    };
+    rlhk_tui_width = width;
+    rlhk_tui_height = height;
     tcgetattr(STDIN_FILENO, &rlhk_tui_termios_orig);
     memcpy(&raw, &rlhk_tui_termios_orig, sizeof(raw));
     raw.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON);
@@ -165,23 +190,22 @@ rlhk_tui_init(void)
     raw.c_cflag &= ~(CSIZE|PARENB);
     raw.c_cflag |= CS8;
     tcsetattr(STDIN_FILENO, TCSANOW, &raw);
-    write(STDIN_FILENO, "\x1b[?25l", 6);
-    memset(rlhk_tui_oldc, 0, sizeof(rlhk_tui_oldc));
+    write(STDIN_FILENO, init, sizeof(init) - 1);
 }
 
 RLHK_TUI_API
 void
 rlhk_tui_release(void)
 {
-    char finish[] =
-        /* Restore cursor visibility. */
-        "\x1b[?25h"
-        /* Move cursor just outside drawing region. */
-        "\x1b[" RLHK_TUI_STR(RLHK_TUI_HEIGHT) ";0H"
-        /* Disable color/style. */
-        "\x1b[0m\n";
+    char finish[24] =
+        "\x1b[?25h"  /* Restore cursor visibility. */
+        "\x1b[";     /* Move cursor just outside drawing region. */
+    unsigned char *f = (unsigned char *)finish + strlen(finish);
+    char *p = (char *)rlhk_tui_itoa(f, rlhk_tui_height);
+    strcpy(p, ";0H" "\x1b[0m\n");  /* Disable color/style. */
     tcsetattr(STDIN_FILENO, TCSANOW, &rlhk_tui_termios_orig);
     write(STDIN_FILENO, finish, sizeof(finish) - 1);
+    memset(rlhk_tui_oldc, 0, sizeof(rlhk_tui_oldc));
 }
 
 RLHK_TUI_API
@@ -210,31 +234,19 @@ rlhk_tui_ucs2_to_8(unsigned ucs2, unsigned char *utf8)
     return 3;
 }
 
-static unsigned char *
-rlhk_tui_itoa(unsigned char *p, int v)
-{
-    int len = !v;
-    int i;
-    for (i = v; i; i /= 10)
-        len++;
-    for (i = len - 1; i >= 0; i--, v /= 10)
-        p[i] = v % 10 + '0';
-    return p + len;
-}
-
 RLHK_TUI_API
 void
 rlhk_tui_flush(void)
 {
     int x, y;
-    static unsigned char buf[RLHK_TUI_HEIGHT * RLHK_TUI_WIDTH *
+    static unsigned char buf[RLHK_TUI_MAX_HEIGHT * RLHK_TUI_MAX_WIDTH *
                              (9 + 3 + 4 + 10) / 2];
     unsigned char *p = buf;
     unsigned last_a = -1u;
     int cx = -1;
     int cy = -1;
-    for (y = 0; y < RLHK_TUI_HEIGHT; y++) {
-        for (x = 0; x < RLHK_TUI_WIDTH; x++) {
+    for (y = 0; y < rlhk_tui_height; y++) {
+        for (x = 0; x < rlhk_tui_width; x++) {
             unsigned short *oc = &rlhk_tui_oldc[y][x];
             unsigned char *oa = &rlhk_tui_olda[y][x];
             unsigned c = rlhk_tui_bufc[y][x];
@@ -314,17 +326,19 @@ rlhk_tui_size(int *width, int *height)
 #include <windows.h>
 #include <conio.h>
 
-static CHAR_INFO rlhk_tui_buf[RLHK_TUI_HEIGHT][RLHK_TUI_WIDTH];
+static CHAR_INFO rlhk_tui_buf[RLHK_TUI_MAX_HEIGHT * RLHK_TUI_MAX_WIDTH];
 static HANDLE rlhk_tui_out;
 static HANDLE rlhk_tui_in;
 static DWORD rlhk_tui_mode_orig;
 
 RLHK_TUI_API
 void
-rlhk_tui_init(void)
+rlhk_tui_init(int width, int height)
 {
     CONSOLE_CURSOR_INFO info = {100, FALSE};
     DWORD mode;
+    rlhk_tui_width = width;
+    rlhk_tui_height = height;
     rlhk_tui_out = GetStdHandle(STD_OUTPUT_HANDLE);
     rlhk_tui_in  = GetStdHandle(STD_INPUT_HANDLE);
     SetConsoleCursorInfo(rlhk_tui_out, &info);
@@ -338,7 +352,8 @@ void
 rlhk_tui_release(void)
 {
     CONSOLE_CURSOR_INFO info = {100, TRUE};
-    COORD coord = {0, RLHK_TUI_HEIGHT};
+    COORD coord = {0, 0};
+    coord.Y = rlhk_tui_height;
     SetConsoleCursorInfo(rlhk_tui_out, &info);
     SetConsoleCursorPosition(rlhk_tui_out, coord);
     SetConsoleMode(rlhk_tui_in, rlhk_tui_mode_orig);
@@ -348,8 +363,8 @@ RLHK_TUI_API
 void
 rlhk_tui_putc(int x, int y, unsigned c, unsigned attr)
 {
-    rlhk_tui_buf[y][x].Char.UnicodeChar = c;
-    rlhk_tui_buf[y][x].Attributes =
+    rlhk_tui_buf[y * rlhk_tui_width + x].Char.UnicodeChar = c;
+    rlhk_tui_buf[y * rlhk_tui_width + x].Attributes =
         (attr & 0xaa) | ((attr >> 2) & 0x11) | ((attr << 2) & 0x44);
 }
 
@@ -357,10 +372,14 @@ RLHK_TUI_API
 void
 rlhk_tui_flush(void)
 {
-    COORD size = {RLHK_TUI_WIDTH, RLHK_TUI_HEIGHT};
     COORD origin = {0, 0};
-    SMALL_RECT area = {0, 0, RLHK_TUI_WIDTH, RLHK_TUI_HEIGHT};
-    WriteConsoleOutputW(rlhk_tui_out, rlhk_tui_buf[0], size, origin, &area);
+    SMALL_RECT area = {0, 0, 0, 0};
+    COORD size;
+    area.Right = rlhk_tui_width;
+    area.Bottom = rlhk_tui_height;
+    size.X = rlhk_tui_width;
+    size.Y = rlhk_tui_height;
+    WriteConsoleOutputW(rlhk_tui_out, rlhk_tui_buf, size, origin, &area);
 }
 
 RLHK_TUI_API
