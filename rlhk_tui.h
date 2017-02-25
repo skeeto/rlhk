@@ -57,7 +57,8 @@
  * and RLHK_TUI_MAX_HEIGHT. On Windows, the width cannot be greater
  * than 80.
  *
- * Returns 1 on success, 0 on failure.
+ * Returns 1 on success, 0 on failure. Call rlhk_tui_release()
+ * regardless of this result.
  */
 RLHK_TUI_API
 int rlhk_tui_init(int width, int height);
