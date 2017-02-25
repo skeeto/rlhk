@@ -54,10 +54,13 @@
  * called again after rlhk_tui_release().
  *
  * The maximum width and height are determined by RLHK_TUI_MAX_WIDTH
- * and RLHK_TUI_MAX_HEIGHT.
+ * and RLHK_TUI_MAX_HEIGHT. On Windows, the width cannot be greater
+ * than 80.
+ *
+ * Returns 1 on success, 0 on failure.
  */
 RLHK_TUI_API
-void rlhk_tui_init(int width, int height);
+int rlhk_tui_init(int width, int height);
 
 /**
  * Reverse of rlhk_tui_init(), restoring the terminal / console.
@@ -172,7 +175,7 @@ rlhk_tui_itoa(unsigned char *p, int v)
 }
 
 RLHK_TUI_API
-void
+int
 rlhk_tui_init(int width, int height)
 {
     struct termios raw;
@@ -190,7 +193,7 @@ rlhk_tui_init(int width, int height)
     raw.c_cflag &= ~(CSIZE|PARENB);
     raw.c_cflag |= CS8;
     tcsetattr(STDIN_FILENO, TCSANOW, &raw);
-    write(STDIN_FILENO, init, sizeof(init) - 1);
+    return write(STDIN_FILENO, init, sizeof(init) - 1) == sizeof(init) - 1;
 }
 
 RLHK_TUI_API
@@ -332,19 +335,37 @@ static HANDLE rlhk_tui_in;
 static DWORD rlhk_tui_mode_orig;
 
 RLHK_TUI_API
-void
+int
 rlhk_tui_init(int width, int height)
 {
     CONSOLE_CURSOR_INFO info = {100, FALSE};
+    SMALL_RECT window = {0, 0, 0, 0};
+    COORD size;
     DWORD mode;
     rlhk_tui_width = width;
     rlhk_tui_height = height;
     rlhk_tui_out = GetStdHandle(STD_OUTPUT_HANDLE);
     rlhk_tui_in  = GetStdHandle(STD_INPUT_HANDLE);
+
+    /* Adjust console input and cursor. */
     SetConsoleCursorInfo(rlhk_tui_out, &info);
     GetConsoleMode(rlhk_tui_in, &rlhk_tui_mode_orig);
     mode = rlhk_tui_mode_orig & ~ENABLE_PROCESSED_INPUT;
     SetConsoleMode(rlhk_tui_in, mode);
+
+    /* Adjust window size. */
+    window.Bottom = height - 1;
+    window.Right = width - 1;
+    if (!SetConsoleWindowInfo(rlhk_tui_out, TRUE, &window))
+        return 0;
+
+    /* Adjust buffer size. */
+    size.X = width;
+    size.Y = height;
+    if (!SetConsoleScreenBufferSize(rlhk_tui_out, size))
+        return 0;
+
+    return 1;
 }
 
 RLHK_TUI_API
