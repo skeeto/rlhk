@@ -17,7 +17,7 @@ different platforms:
 
     make CC=x86_64-linux-gnu-gcc
     make CC=x86_64-w64-mingw32-gcc
-    make CC=i586-msdosdjgpp-gcc
+    make CC=i586-pc-msdosdjgpp-gcc
 
 The demo can also be built using Visual Studio's cl.exe, though not
 with this Makefile.
