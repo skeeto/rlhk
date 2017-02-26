@@ -1,10 +1,10 @@
-#include <stdlib.h>
-#include <string.h>
-
-#define RLHK_TUI_IMPLEMENTATION
-#define RLHK_RAND_IMPLEMENTATION
+#define RLHK_API
+#define RLHK_IMPLEMENTATION
 #include "../rlhk_tui.h"
 #include "../rlhk_rand.h"
+
+#include <stdlib.h>
+#include <string.h>
 
 static int width, height;
 

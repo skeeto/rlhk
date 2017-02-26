@@ -27,7 +27,7 @@ RLHK_RAND_API
 unsigned long rlhk_rand_32(unsigned long *);
 
 /* Implementation */
-#ifdef RLHK_RAND_IMPLEMENTATION
+#if defined(RLHK_IMPLEMENTATION) || defined(RLHK_RAND_IMPLEMENTATION)
 #include <math.h>
 
 /* System entropy. */

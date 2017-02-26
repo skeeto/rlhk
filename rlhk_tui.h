@@ -919,7 +919,7 @@ int rlhk_tui_size(int *width, int *height);
 #endif /* __MSDOS__ */
 
 /* Implementation */
-#ifdef RLHK_TUI_IMPLEMENTATION
+#if defined(RLHK_IMPLEMENTATION) || defined(RLHK_TUI_IMPLEMENTATION)
 
 static int rlhk_tui_width;
 static int rlhk_tui_height;

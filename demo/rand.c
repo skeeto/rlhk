@@ -1,5 +1,5 @@
-#define RLHK_TUI_IMPLEMENTATION
-#define RLHK_RAND_IMPLEMENTATION
+#define RLHK_API static
+#define RLHK_IMPLEMENTATION
 #include "../rlhk_tui.h"
 #include "../rlhk_rand.h"
 

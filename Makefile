@@ -1,6 +1,6 @@
 .POSIX:
 CC     = cc
-CFLAGS = -ansi -pedantic -Os -Wall -Wextra -g3
+CFLAGS = -ansi -pedantic -Os -Wall -Wextra -Wno-unused-function -g3
 LDLIBS = -lm
 SUFFIX =
 
