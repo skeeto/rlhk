@@ -1240,6 +1240,7 @@ rlhk_tui_size(int *width, int *height)
 #ifdef __STRICT_ANSI__
 #  undef __STRICT_ANSI__  /* Disable DJGPP annoyance. */
 #endif
+#include <string.h>
 #include <conio.h>
 #include <sys/nearptr.h>
 
