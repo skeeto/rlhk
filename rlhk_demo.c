@@ -1,3 +1,6 @@
+#include <stdlib.h>
+#include <string.h>
+
 #define RLHK_TUI_IMPLEMENTATION
 #define RLHK_RAND_IMPLEMENTATION
 #include "rlhk_tui.h"
