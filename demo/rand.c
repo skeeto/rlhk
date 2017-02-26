@@ -8,6 +8,8 @@
 
 #define MIN(a, b) ((b) < (a) ? (b) : (a))
 #define MAX(a, b) ((b) > (a) ? (b) : (a))
+#define WHITE  RLHK_TUI_FR | RLHK_TUI_FG | RLHK_TUI_FB | RLHK_TUI_FH
+#define GREEN  RLHK_TUI_FG | RLHK_TUI_FH
 
 enum func {
     FUNC_NORM
@@ -41,7 +43,6 @@ static void
 bin_draw(unsigned long *bins, int width, int height)
 {
     int x, y;
-    unsigned attr = RLHK_TUI_FR | RLHK_TUI_FG | RLHK_TUI_FB | RLHK_TUI_FH;
     unsigned long bin_max = 0;
 
     for (x = 0; x < width; x++)
@@ -60,10 +61,19 @@ bin_draw(unsigned long *bins, int width, int height)
                 c = RLHK_TUI_MEDIUM_SHADE;
             else if (y <= s - 1)
                 c = RLHK_TUI_LIGHT_SHADE;
-            rlhk_tui_putc(x, height - y - 1, c, attr);
+            rlhk_tui_putc(x, height - y - 1, c, WHITE);
         }
     }
     rlhk_tui_flush();
+}
+
+static void
+print(int width, const char *s)
+{
+    int len = strlen(s);
+    int x;
+    for (x = 0; s[x]; x++)
+        rlhk_tui_putc(width - len + x, 0, s[x], GREEN);
 }
 
 int
@@ -86,6 +96,8 @@ main(void)
         bin_fill(bins, width, 100, rng, FUNC_NORM);
         bin_draw(bins, width, height);
     }
+    print(width, "Press any key ...");
+    rlhk_tui_flush();
     rlhk_tui_getch();
 
     rlhk_tui_release();
