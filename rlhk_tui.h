@@ -65,9 +65,11 @@ int rlhk_tui_init(int width, int height);
 
 /**
  * Reverse of rlhk_tui_init(), restoring the terminal / console.
+ *
+ * Returns 1 on success, 0 on failure.
  */
 RLHK_TUI_API
-void rlhk_tui_release(void);
+int rlhk_tui_release(void);
 
 #define RLHK_TUI_FR (1u << 0)  /* foreground red       */
 #define RLHK_TUI_FG (1u << 1)  /* foreground green     */
@@ -101,9 +103,11 @@ void rlhk_tui_putc(int x, int y, unsigned c, unsigned attr);
  *
  * Calls to rlhk_tui_putc() are not visible until this call. You
  * probably want to call this function before rlhk_tui_getch().
+ *
+ * Returns 1 on success, 0 on failure.
  */
 RLHK_TUI_API
-void rlhk_tui_flush(void);
+int rlhk_tui_flush(void);
 
 #define RLHK_TUI_VK_U       321     /* up         */
 #define RLHK_TUI_VK_D       322     /* down       */
@@ -120,15 +124,19 @@ void rlhk_tui_flush(void);
  *
  * Limited to ASCII characters, but some special inputs, such as
  * directional arrow keys, have the above definitions.
+ *
+ * Returns -1 on error.
  */
 RLHK_TUI_API
 int rlhk_tui_getch(void);
 
 /**
  * Sets the terminal / console window title.
+ *
+ * Returns 1 on success, 0 on failure.
  */
 RLHK_TUI_API
-void rlhk_tui_title(const char *);
+int rlhk_tui_title(const char *);
 
 /**
  * Gets the current terminal / console size.
@@ -136,9 +144,11 @@ void rlhk_tui_title(const char *);
  * Useful for checking the size of the display in order to dynamically
  * scale the display, abort with an error for being too small, or to
  * wait until the screen is resized.
+ *
+ * Returns 1 on success, 0 on failure.
  */
 RLHK_TUI_API
-void rlhk_tui_size(int *width, int *height);
+int rlhk_tui_size(int *width, int *height);
 
 #if (defined(__unix__) || defined(__APPLE__)) && !defined(__DJGPP__)
 #define RLHK_TUI_SPACE                                              0x000020U
@@ -858,30 +868,33 @@ rlhk_tui_init(int width, int height)
     };
     rlhk_tui_width = width;
     rlhk_tui_height = height;
-    tcgetattr(STDIN_FILENO, &rlhk_tui_termios_orig);
+    if (tcgetattr(STDIN_FILENO, &rlhk_tui_termios_orig) == -1)
+        return 0;
     memcpy(&raw, &rlhk_tui_termios_orig, sizeof(raw));
     raw.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON);
     raw.c_oflag &= ~OPOST;
     raw.c_lflag &= ~(ECHO|ECHONL|ICANON|ISIG|IEXTEN);
     raw.c_cflag &= ~(CSIZE|PARENB);
     raw.c_cflag |= CS8;
-    tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+    if (tcsetattr(STDIN_FILENO, TCSANOW, &raw) == -1)
+        return 0;
     return write(STDIN_FILENO, init, sizeof(init) - 1) == sizeof(init) - 1;
 }
 
 RLHK_TUI_API
-void
+int
 rlhk_tui_release(void)
 {
     char finish[24] =
         "\x1b[?25h"  /* Restore cursor visibility. */
         "\x1b[";     /* Move cursor just outside drawing region. */
+    ssize_t finishz = sizeof(finish) - 1;
     unsigned char *f = (unsigned char *)finish + strlen(finish);
     char *p = (char *)rlhk_tui_itoa(f, rlhk_tui_height);
     strcpy(p, ";0H" "\x1b[0m\n");  /* Disable color/style. */
     tcsetattr(STDIN_FILENO, TCSANOW, &rlhk_tui_termios_orig);
-    write(STDIN_FILENO, finish, sizeof(finish) - 1);
     memset(rlhk_tui_oldc, 0, sizeof(rlhk_tui_oldc));
+    return write(STDIN_FILENO, finish, finishz) == finishz;
 }
 
 RLHK_TUI_API
@@ -893,7 +906,7 @@ rlhk_tui_putc(int x, int y, unsigned c, unsigned attr)
 }
 
 RLHK_TUI_API
-void
+int
 rlhk_tui_flush(void)
 {
     int x, y;
@@ -948,7 +961,7 @@ rlhk_tui_flush(void)
             }
         }
     }
-    write(STDOUT_FILENO, buf, p - buf);
+    return write(STDOUT_FILENO, buf, p - buf) == p - buf;
 }
 
 RLHK_TUI_API
@@ -957,11 +970,12 @@ rlhk_tui_getch(void)
 {
     int r;
     unsigned char c;
-    if ((r = read(STDIN_FILENO, &c, sizeof(c))) < 0) {
-        return r;
+    if ((r = read(STDIN_FILENO, &c, 1)) != 1) {
+        return -1;
     } else if (c == '\x1b') {
         unsigned char code[2];
-        (void)read(STDIN_FILENO, code, sizeof(code));
+        if (read(STDIN_FILENO, code, 2) != 2)
+            return -1;
         return code[1] + 256;
     } else {
         return c;
@@ -969,23 +983,32 @@ rlhk_tui_getch(void)
 }
 
 RLHK_TUI_API
-void
+int
 rlhk_tui_title(const char *title)
 {
     char a = '\a';
-    write(STDIN_FILENO, "\x1b]2;", 4);
-    write(STDIN_FILENO, title, strlen(title));
-    write(STDIN_FILENO, &a, 1);
+    ssize_t len = strlen(title);
+    if (write(STDIN_FILENO, "\x1b]2;", 4) != 4)
+        return 0;
+    if (write(STDIN_FILENO, title, len) != len)
+        return 0;
+    if (write(STDIN_FILENO, &a, 1) != 1)
+        return 0;
+    return 1;
 }
 
 RLHK_TUI_API
-void
+int
 rlhk_tui_size(int *width, int *height)
 {
     struct winsize w;
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-    *width = w.ws_col;
-    *height = w.ws_row;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) != -1) {
+        *width = w.ws_col;
+        *height = w.ws_row;
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 #elif defined(_WIN32)
@@ -1032,15 +1055,16 @@ rlhk_tui_init(int width, int height)
 }
 
 RLHK_TUI_API
-void
+int
 rlhk_tui_release(void)
 {
     CONSOLE_CURSOR_INFO info = {100, TRUE};
     COORD coord = {0, 0};
-    coord.Y = rlhk_tui_height;
-    SetConsoleCursorInfo(rlhk_tui_out, &info);
-    SetConsoleCursorPosition(rlhk_tui_out, coord);
-    SetConsoleMode(rlhk_tui_in, rlhk_tui_mode_orig);
+    coord.Y = rlhk_tui_height - 1;
+    return
+        SetConsoleCursorInfo(rlhk_tui_out, &info) &&
+        SetConsoleCursorPosition(rlhk_tui_out, coord) &&
+        SetConsoleMode(rlhk_tui_in, rlhk_tui_mode_orig);
 }
 
 RLHK_TUI_API
@@ -1053,23 +1077,25 @@ rlhk_tui_putc(int x, int y, unsigned c, unsigned attr)
 }
 
 RLHK_TUI_API
-void
+int
 rlhk_tui_flush(void)
 {
     COORD origin = {0, 0};
     SMALL_RECT area = {0, 0, 0, 0};
     COORD size;
+    void *buf = rlhk_tui_buf;
     area.Right = rlhk_tui_width;
     area.Bottom = rlhk_tui_height;
     size.X = rlhk_tui_width;
     size.Y = rlhk_tui_height;
-    WriteConsoleOutputW(rlhk_tui_out, rlhk_tui_buf, size, origin, &area);
+    return !!WriteConsoleOutputW(rlhk_tui_out, buf, size, origin, &area);
 }
 
 RLHK_TUI_API
 int
 rlhk_tui_getch(void)
 {
+    /* getch() cannot fail, so this function cannot fail. */
     int result = getch();
     if (result != 0xE0 && result != 0x00) {
         return result;
@@ -1099,20 +1125,22 @@ rlhk_tui_getch(void)
 }
 
 RLHK_TUI_API
-void
+int
 rlhk_tui_title(const char *title)
 {
-    SetConsoleTitle(title);
+    return !!SetConsoleTitle(title);
 }
 
 RLHK_TUI_API
-void
+int
 rlhk_tui_size(int *width, int *height)
 {
     CONSOLE_SCREEN_BUFFER_INFO csbi;
-    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    if (!GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi))
+        return 0;
     *width = csbi.srWindow.Right - csbi.srWindow.Left + 1;
     *height = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+    return 1;
 }
 
 #elif defined(__DJGPP__)
@@ -1134,10 +1162,11 @@ rlhk_tui_init(int width, int height)
 }
 
 RLHK_TUI_API
-void
+int
 rlhk_tui_release(void)
 {
     memset(rlhk_tui_buf, 0, sizeof(rlhk_tui_buf));
+    return 1;
 }
 
 RLHK_TUI_API
@@ -1149,19 +1178,22 @@ rlhk_tui_putc(int x, int y, unsigned c, unsigned attr)
 }
 
 RLHK_TUI_API
-void
+int
 rlhk_tui_flush(void)
 {
     char *screen = (char *)0xb8000 + __djgpp_conventional_base;
-    __djgpp_nearptr_enable();
+    if (!__djgpp_nearptr_enable())
+        return 0;
     memcpy(screen, rlhk_tui_buf, sizeof(rlhk_tui_buf));
     __djgpp_nearptr_disable();
+    return 1;
 }
 
 RLHK_TUI_API
 int
 rlhk_tui_getch(void)
 {
+    /* getch() cannot fail, so this function cannot fail. */
     int result = getch();
     if (result != 0xE0 && result != 0x00) {
         return result;
@@ -1191,19 +1223,19 @@ rlhk_tui_getch(void)
 }
 
 RLHK_TUI_API
-void
+int
 rlhk_tui_title(const char *s)
 {
-    (void)s;
-    /* empty */
+    return !!s;
 }
 
 RLHK_TUI_API
-void
+int
 rlhk_tui_size(int *width, int *height)
 {
     *width = 80;
     *height = 25;
+    return 1;
 }
 
 #endif /* __MSDOS__ */

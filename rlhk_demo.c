@@ -71,7 +71,8 @@ map_generate(void)
                 rlhk_tui_putc(x, y, TILE_DIRT_C, TILE_DIRT_A);
             else 
                 rlhk_tui_putc(x, y, TILE_EMPTY_C, TILE_EMPTY_A);
-    rlhk_tui_flush();
+    if (!rlhk_tui_flush())
+        abort();
 }
 
 int
@@ -80,7 +81,8 @@ main(void)
     int x, y;
     int running = 1;
     
-    rlhk_tui_size(&width, &height);
+    if (!rlhk_tui_size(&width, &height))
+        abort();
     if (width > RLHK_TUI_MAX_WIDTH)
         width = RLHK_TUI_MAX_WIDTH;
     if (height > RLHK_TUI_MAX_HEIGHT)
@@ -88,7 +90,8 @@ main(void)
     x = width / 2;
     y = height / 2;
 
-    rlhk_tui_init(width, height);
+    if (!rlhk_tui_init(width, height))
+        abort();
     map_generate();
     rlhk_tui_putc(x, y, TILE_PLAYER_C, TILE_PLAYER_A);
 
@@ -97,7 +100,8 @@ main(void)
         int dx = 0;
         int dy = 0;
 
-        rlhk_tui_flush();
+        if (!rlhk_tui_flush())
+            abort();
         k = rlhk_tui_getch();
         switch (k) {
             case RLHK_TUI_VK_L:
@@ -145,6 +149,7 @@ main(void)
         }
     } while (running);
 
-    rlhk_tui_release();
+    if (!rlhk_tui_release())
+        abort();
     return 0;
 }
