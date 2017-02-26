@@ -40,7 +40,7 @@
 #endif
 
 #ifndef RLHK_TUI_MAX_HEIGHT
-#  define RLHK_TUI_MAX_HEIGHT 24
+#  define RLHK_TUI_MAX_HEIGHT 25
 #endif
 
 /**

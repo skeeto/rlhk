@@ -6,8 +6,7 @@
 #include "rlhk_tui.h"
 #include "rlhk_rand.h"
 
-#define WIDTH  RLHK_TUI_MAX_WIDTH
-#define HEIGHT RLHK_TUI_MAX_HEIGHT
+static int width, height;
 
 #define TILE_EMPTY_C   RLHK_TUI_SPACE
 #define TILE_EMPTY_A   0
@@ -18,14 +17,14 @@
 #define TILE_PLAYER_C  RLHK_TUI_COMMERCIAL_AT
 #define TILE_PLAYER_A  (RLHK_TUI_FR | RLHK_TUI_FB | RLHK_TUI_FH)
 
-static char game_map[2][HEIGHT][WIDTH];
+static char game_map[2][RLHK_TUI_MAX_HEIGHT][RLHK_TUI_MAX_WIDTH];
 
 #define IN_BOUNDS(x, y) \
     (x > 0 && y > 0 && \
-     x < WIDTH - 1 && y < HEIGHT - 1)
+     x < width - 1 && y < height - 1)
 
 #define ON_BORDER(x, y) \
-    (!x || !y || x == WIDTH - 1 || y == HEIGHT - 1)
+    (!x || !y || x == width - 1 || y == height - 1)
 
 static void
 map_generate(void)
@@ -37,19 +36,19 @@ map_generate(void)
         abort();
 
     memset(game_map, 1, sizeof(game_map));
-    for (i = 0; i < WIDTH * HEIGHT / 4; i++) {
+    for (i = 0; i < width * height / 4; i++) {
         double nx, ny;
         int x, y;
         rlhk_rand_norm(rng, &nx, &ny);
-        x = nx * WIDTH / 6 + WIDTH / 2;
-        y = ny * HEIGHT / 6 + HEIGHT / 2;
+        x = nx * width / 6 + width / 2;
+        y = ny * height / 6 + height / 2;
         if (IN_BOUNDS(x, y))
             game_map[1][y][x] = 0;
     }
 
     for (i = 1; i < 3; i++) {
-        for (y = 1; y < HEIGHT - 1; y++) {
-            for (x = 1; x < WIDTH - 1; x++) {
+        for (y = 1; y < height - 1; y++) {
+            for (x = 1; x < width - 1; x++) {
                 int sum = 
                     game_map[i % 2][y - 1][x + 1] +
                     game_map[i % 2][y - 1][x + 0] +
@@ -64,8 +63,8 @@ map_generate(void)
         }
     }
 
-    for (y = 0; y < HEIGHT; y++)
-        for (x = 0; x < WIDTH; x++)
+    for (y = 0; y < height; y++)
+        for (x = 0; x < width; x++)
             if (ON_BORDER(x, y))
                 rlhk_tui_putc(x, y, TILE_WALL_C, TILE_WALL_A);
             else if (game_map[0][y][x])
@@ -78,11 +77,18 @@ map_generate(void)
 int
 main(void)
 {
-    int x = WIDTH / 2;
-    int y = HEIGHT / 2;
+    int x, y;
     int running = 1;
+    
+    rlhk_tui_size(&width, &height);
+    if (width > RLHK_TUI_MAX_WIDTH)
+        width = RLHK_TUI_MAX_WIDTH;
+    if (height > RLHK_TUI_MAX_HEIGHT)
+        height = RLHK_TUI_MAX_HEIGHT;
+    x = width / 2;
+    y = height / 2;
 
-    rlhk_tui_init(WIDTH, HEIGHT);
+    rlhk_tui_init(width, height);
     map_generate();
     rlhk_tui_putc(x, y, TILE_PLAYER_C, TILE_PLAYER_A);
 
