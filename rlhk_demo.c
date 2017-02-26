@@ -9,21 +9,14 @@
 #define WIDTH  RLHK_TUI_MAX_WIDTH
 #define HEIGHT RLHK_TUI_MAX_HEIGHT
 
-#define TILE_EMPTY_C   ' '
+#define TILE_EMPTY_C   RLHK_TUI_SPACE
 #define TILE_EMPTY_A   0
-#define TILE_DIRT_C    0x2592u  /* MEDIUM SHADE */
+#define TILE_DIRT_C    RLHK_TUI_MEDIUM_SHADE
 #define TILE_DIRT_A    (RLHK_TUI_FR | RLHK_TUI_FG | RLHK_TUI_FB)
-#define TILE_WALL_C    0x2588u  /* FULL BLOCK */
+#define TILE_WALL_C    RLHK_TUI_FULL_BLOCK
 #define TILE_WALL_A    (RLHK_TUI_FR | RLHK_TUI_FG | RLHK_TUI_FB | RLHK_TUI_FH)
-#define TILE_PLAYER_C  '@'
+#define TILE_PLAYER_C  RLHK_TUI_COMMERCIAL_AT
 #define TILE_PLAYER_A  (RLHK_TUI_FR | RLHK_TUI_FB | RLHK_TUI_FH)
-
-#ifdef __MSDOS__
-#undef TILE_DIRT_C
-#undef TILE_WALL_C
-#define TILE_DIRT_C    177u
-#define TILE_WALL_C    219u
-#endif
 
 static char game_map[2][HEIGHT][WIDTH];
 
