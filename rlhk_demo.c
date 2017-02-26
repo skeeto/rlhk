@@ -102,7 +102,8 @@ main(void)
 
         if (!rlhk_tui_flush())
             abort();
-        k = rlhk_tui_getch();
+        if ((k = rlhk_tui_getch()) == -1)
+            abort();
         switch (k) {
             case RLHK_TUI_VK_L:
             case 'h':
