@@ -16,4 +16,4 @@ demo/rand$(SUFFIX): demo/rand.c rlhk_tui.h rlhk_rand.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)
 
 clean:
-	rm -f demo/game demo/game.exe demo/rand demo/rand.exe
+	rm -f demo/game$(SUFFIX) demo/rand$(SUFFIX)
