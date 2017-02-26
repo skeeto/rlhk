@@ -52,13 +52,13 @@ bin_draw(unsigned long *bins, int width, int height)
         int s = height * bins[x] / (double)bin_max;
         for (y = 0; y < height; y++) {
             unsigned c = ' ';
-            if (y < s - 4)
+            if (y <= s - 4)
                 c = RLHK_TUI_FULL_BLOCK;
-            else if (y < s - 3)
+            else if (y <= s - 3)
                 c = RLHK_TUI_DARK_SHADE;
-            else if (y < s - 2)
+            else if (y <= s - 2)
                 c = RLHK_TUI_MEDIUM_SHADE;
-            else if (y < s - 1)
+            else if (y <= s - 1)
                 c = RLHK_TUI_LIGHT_SHADE;
             rlhk_tui_putc(x, height - y - 1, c, attr);
         }
