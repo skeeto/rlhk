@@ -16,8 +16,8 @@ Assuming the proper compilers are available, try out the demo on
 different platforms:
 
     make CC=x86_64-linux-gnu-gcc
-    make CC=x86_64-w64-mingw32-gcc
-    make CC=i586-pc-msdosdjgpp-gcc
+    make CC=x86_64-w64-mingw32-gcc SUFFIX=.exe
+    make CC=i586-pc-msdosdjgpp-gcc SUFFIX=.exe
 
 The demo can also be built using Visual Studio's cl.exe, though not
 with this Makefile.

@@ -2,7 +2,11 @@
 #define RLHK_RAND_H
 
 #ifndef RLHK_RAND_API
-#  define RLHK_RAND_API
+#  ifdef RLHK_API
+#    define RLHK_RAND_API RLHK_API
+#  else
+#    define RLHK_RAND_API
+#  endif
 #endif
 
 /**

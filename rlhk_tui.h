@@ -32,7 +32,11 @@
 #define RLHK_TUI_H
 
 #ifndef RLHK_TUI_API
-#  define RLHK_TUI_API
+#  ifdef RLHK_API
+#    define RLHK_TUI_API RLHK_API
+#  else
+#    define RLHK_TUI_API
+#  endif
 #endif
 
 #ifndef RLHK_TUI_MAX_WIDTH

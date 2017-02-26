@@ -3,8 +3,8 @@
 
 #define RLHK_TUI_IMPLEMENTATION
 #define RLHK_RAND_IMPLEMENTATION
-#include "rlhk_tui.h"
-#include "rlhk_rand.h"
+#include "../rlhk_tui.h"
+#include "../rlhk_rand.h"
 
 static int width, height;
 

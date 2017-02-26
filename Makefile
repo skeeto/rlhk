@@ -2,9 +2,18 @@
 CC     = cc
 CFLAGS = -ansi -pedantic -Os -Wall -Wextra -g3
 LDLIBS = -lm
+SUFFIX =
 
-rlhk_demo: rlhk_demo.c rlhk_tui.h rlhk_rand.h
-	$(CC) $(CFLAGS) $(LDLIBS) -o $@ rlhk_demo.c $(LDLIBS)
+.PHONY : all clean
+.SUFFIXES: .c $(SUFFIX)
+
+all: demo/game$(SUFFIX) demo/rand$(SUFFIX)
+
+demo/game$(SUFFIX): demo/game.c rlhk_tui.h rlhk_rand.h
+demo/rand$(SUFFIX): demo/rand.c rlhk_tui.h rlhk_rand.h
+
+.c$(SUFFIX):
+	$(CC) $(CFLAGS) $(LDLIBS) -o $@ $< $(LDLIBS)
 
 clean:
-	rm -f rlhk_demo rlhk_demo.exe
+	rm -f demo/game demo/game.exe demo/rand demo/rand.exe
