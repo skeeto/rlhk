@@ -39,4 +39,4 @@ system's encoding via the macros named `RLHK_TUI_<unicode_name>`.
 
 
 [dpmi]: http://www.delorie.com/djgpp/v2faq/faq4_4.html
-[cp437]: http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/PC/CP437.TXT
+[cp437]: https://en.wikipedia.org/wiki/Code_page_437
