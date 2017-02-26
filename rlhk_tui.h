@@ -890,13 +890,12 @@ rlhk_tui_size(int *width, int *height)
     *height = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 }
 
-#elif defined(__MSDOS__)
+#elif defined(__DJGPP__)
 #ifdef __STRICT_ANSI__
 #  undef __STRICT_ANSI__  /* Disable DJGPP annoyance. */
 #endif
 #include <conio.h>
-#include <go32.h>
-#include <sys/farptr.h>
+#include <sys/nearptr.h>
 
 #define RLHK_TUI_SPACE                                              0x20
 #define RLHK_TUI_EXCLAMATION_MARK                                   0x21
@@ -1121,6 +1120,8 @@ rlhk_tui_size(int *width, int *height)
 #define RLHK_TUI_SUPERSCRIPT_TWO                                    0xfd
 #define RLHK_TUI_BLACK_SQUARE                                       0xfe
 
+static unsigned short rlhk_tui_buf[25][80];
+
 RLHK_TUI_API
 int
 rlhk_tui_init(int width, int height)
@@ -1134,7 +1135,7 @@ RLHK_TUI_API
 void
 rlhk_tui_release(void)
 {
-    /* empty */
+    memset(rlhk_tui_buf, 0, sizeof(rlhk_tui_buf));
 }
 
 RLHK_TUI_API
@@ -1142,17 +1143,22 @@ void
 rlhk_tui_putc(int x, int y, unsigned c, unsigned attr)
 {
     unsigned a = (attr & 0x2a) | ((attr >> 2) & 0x11) | ((attr << 2) & 0x44);
-    _farpokew(_dos_ds, 0xb8000ul + y * 80 * 2 + x * 2, c | (a << 8));
+    rlhk_tui_buf[y][x] = c | (a << 8);
 }
 
 RLHK_TUI_API
-void rlhk_tui_flush(void)
+void
+rlhk_tui_flush(void)
 {
-    /* empty */
+    char *screen = (char *)0xb8000 + __djgpp_conventional_base;
+    __djgpp_nearptr_enable();
+    memcpy(screen, rlhk_tui_buf, sizeof(rlhk_tui_buf));
+    __djgpp_nearptr_disable();
 }
 
 RLHK_TUI_API
-int rlhk_tui_getch(void)
+int
+rlhk_tui_getch(void)
 {
     int result = getch();
     if (result != 0xE0 && result != 0x00) {
@@ -1183,14 +1189,16 @@ int rlhk_tui_getch(void)
 }
 
 RLHK_TUI_API
-void rlhk_tui_title(const char *s)
+void
+rlhk_tui_title(const char *s)
 {
     (void)s;
     /* empty */
 }
 
 RLHK_TUI_API
-void rlhk_tui_size(int *width, int *height)
+void
+rlhk_tui_size(int *width, int *height)
 {
     *width = 80;
     *height = 25;
