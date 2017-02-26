@@ -79,7 +79,8 @@ print(int width, const char *s)
 int
 main(void)
 {
-    int width, height;
+    int width = 0;
+    int height = 0;
     unsigned long rng[1];
     unsigned long bins[RLHK_TUI_MAX_WIDTH];
     int i;
