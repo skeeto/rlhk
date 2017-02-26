@@ -1029,14 +1029,10 @@ rlhk_tui_flush(void)
                 }
                 /* Apply colors. */
                 if (a != last_a) {
-                    int fg = (a & 0x07) + 30;
+                    int fg = ((a >> 0) & 0x07) + (a & 0x08 ? 90  : 30);
                     int bg = ((a >> 4) & 0x07) + (a & 0x80 ? 100 : 40);
                     *p++ = 0x1b;
                     *p++ = '[';
-                    if (a & 0x08) {
-                        *p++ = '1';
-                        *p++ = ';';
-                    }
                     p = rlhk_tui_itoa(p, fg);
                     *p++ = ';';
                     p = rlhk_tui_itoa(p, bg);
