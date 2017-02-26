@@ -146,7 +146,7 @@ void rlhk_tui_size(int *width, int *height);
 static int rlhk_tui_width;
 static int rlhk_tui_height;
 
-#if defined(__unix__) || defined(__unix) || defined(__APPLE__)
+#if (defined(__unix__) || defined(__APPLE__)) && !defined(__DJGPP__)
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -458,6 +458,89 @@ rlhk_tui_size(int *width, int *height)
     *height = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 }
 
-#endif /* _WIN32 */
+#elif defined(__MSDOS__)
+#ifdef __STRICT_ANSI__
+#  undef __STRICT_ANSI__  /* Disable DJGPP annoyance. */
+#endif
+#include <conio.h>
+#include <go32.h>
+#include <sys/farptr.h>
+
+RLHK_TUI_API
+int
+rlhk_tui_init(int width, int height)
+{
+    rlhk_tui_width = width;
+    rlhk_tui_height = height;
+    return width <= 80 && height <= 25;
+}
+
+RLHK_TUI_API
+void
+rlhk_tui_release(void)
+{
+    /* empty */
+}
+
+RLHK_TUI_API
+void
+rlhk_tui_putc(int x, int y, unsigned c, unsigned attr)
+{
+    unsigned a = (attr & 0x2a) | ((attr >> 2) & 0x11) | ((attr << 2) & 0x44);
+    _farpokew(_dos_ds, 0xb8000ul + y * 80 * 2 + x * 2, c | (a << 8));
+}
+
+RLHK_TUI_API
+void rlhk_tui_flush(void)
+{
+    /* empty */
+}
+
+RLHK_TUI_API
+int rlhk_tui_getch(void)
+{
+    int result = getch();
+    if (result != 0xE0 && result != 0x00) {
+        return result;
+    } else {
+        result = getch();
+        switch (result) {
+            case 72:
+                return RLHK_TUI_VK_U;
+            case 80:
+                return RLHK_TUI_VK_D;
+            case 75:
+                return RLHK_TUI_VK_L;
+            case 77:
+                return RLHK_TUI_VK_R;
+            case 71:
+                return RLHK_TUI_VK_UL;
+            case 73:
+                return RLHK_TUI_VK_UR;
+            case 79:
+                return RLHK_TUI_VK_DL;
+            case 81:
+                return RLHK_TUI_VK_DR;
+            default:
+                return result + 256;
+        }
+    }
+}
+
+RLHK_TUI_API
+void rlhk_tui_title(const char *s)
+{
+    (void)s;
+    /* empty */
+}
+
+RLHK_TUI_API
+void rlhk_tui_size(int *width, int *height)
+{
+    *width = 80;
+    *height = 25;
+}
+
+#endif /* __MSDOS__ */
 #endif /* RLHK_TUI_IMPLEMENTATION */
 #endif /* RLHK_TUI_H */

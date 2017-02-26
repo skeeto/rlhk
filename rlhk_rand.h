@@ -27,7 +27,7 @@ unsigned long rlhk_rand_32(unsigned long *);
 #include <math.h>
 
 /* System entropy. */
-#if defined(__unix__) || defined(__unix) || defined(__APPLE__)
+#if (defined(__unix__) || defined(__APPLE__)) && !defined(__DJGPP__)
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -61,7 +61,27 @@ rlhk_rand_entropy(void *buf, unsigned len)
         CryptReleaseContext(h, 0);
     return success;
 }
-#endif /* _WIN32 */
+#elif defined(__MSDOS__)
+#include <time.h>
+
+RLHK_RAND_API
+int
+rlhk_rand_entropy(void *buf, unsigned len)
+{
+    /* Best option is the clock. */
+    unsigned long t = time(0);
+    char *e = (char *)buf + len;
+    char *p = buf;
+    while (p != e) {
+        unsigned long v = rlhk_rand_32(&t);
+        int z = e - p > 4 ? 4 : e - p;
+        memcpy(p, &v, z);
+        p += z;
+    }
+    return 1;
+}
+
+#endif /* __MSDOS__ */
 
 RLHK_RAND_API
 unsigned long

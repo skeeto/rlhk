@@ -18,6 +18,13 @@
 #define TILE_PLAYER_C  '@'
 #define TILE_PLAYER_A  (RLHK_TUI_FR | RLHK_TUI_FB | RLHK_TUI_FH)
 
+#ifdef __MSDOS__
+#undef TILE_DIRT_C
+#undef TILE_WALL_C
+#define TILE_DIRT_C    177u
+#define TILE_WALL_C    219u
+#endif
+
 static char game_map[2][HEIGHT][WIDTH];
 
 #define IN_BOUNDS(x, y) \
