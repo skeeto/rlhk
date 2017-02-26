@@ -29,5 +29,14 @@ on user input. While this isn't *strictly* required, should you want
 to use multiple threads, me mindful that RLHK functions are neither
 thread-safe nor re-entrant.
 
+## Character Set
+
+Any ASCII character can be used directly as-is. For fancier
+characters, `rlhk_tui.h` provides a fully portable character set that
+work on the more limited Windows console and MS-DOS. It's essentially
+just [code page 437][cp437]. Each character is available in the host
+system's encoding via the macros named `RLHK_TUI_<unicode_name>`.
+
 
 [dpmi]: http://www.delorie.com/djgpp/v2faq/faq4_4.html
+[cp437]: http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/PC/CP437.TXT
