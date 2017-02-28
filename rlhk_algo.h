@@ -176,6 +176,7 @@ int rlhk_algo_dijkstra(rlhk_algo_map map, int x, int y,
 
 /* Implementation */
 #if defined(RLHK_IMPLEMENTATION) || defined(RLHK_ALGO_IMPLEMENTATION)
+#include <stdlib.h>
 #include <limits.h>
 
 struct rlhk_algo_heap {
