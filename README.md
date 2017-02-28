@@ -29,6 +29,20 @@ on user input. While this isn't *strictly* required, should you want
 to use multiple threads, me mindful that RLHK functions are neither
 thread-safe nor re-entrant.
 
+For maximum portability, RLHK is written in strict ANSI C89 except for
+some isolated bits of platform-specific code. RLHK also uses none of
+the `stdio.h` functions, meaning your program won't have to link with
+these formatted output functions in a static build.
+
+RLHK functions do not make dynamic allocations. Either static storage
+is used, or a work buffer must be passed to the function, such as the
+case for `rlhk_algo_shortest()`.
+
+RLHK, being a header library, is designed to be embedded within your
+program. This reflected through its API, such as not using function
+pointers for callbacks. Its functions are intended in many cases to
+inline naturally with your main program's functions.
+
 ## Character Set
 
 Any ASCII character can be used directly as-is. For fancier

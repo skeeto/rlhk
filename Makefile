@@ -9,7 +9,7 @@ SUFFIX =
 
 all: demo/game$(SUFFIX) demo/rand$(SUFFIX)
 
-demo/game$(SUFFIX): demo/game.c rlhk_tui.h rlhk_rand.h
+demo/game$(SUFFIX): demo/game.c rlhk_tui.h rlhk_rand.h rlhk_algo.h
 demo/rand$(SUFFIX): demo/rand.c rlhk_tui.h rlhk_rand.h
 
 .c$(SUFFIX):
