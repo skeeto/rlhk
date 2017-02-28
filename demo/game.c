@@ -1,4 +1,4 @@
-typedef void *rlhk_algo_map;
+typedef int rlhk_algo_map;
 
 #define RLHK_API
 #define RLHK_IMPLEMENTATION
@@ -23,8 +23,8 @@ static int width, height;
 static char game_map[2][RLHK_TUI_MAX_HEIGHT][RLHK_TUI_MAX_WIDTH];
 static char map_marked[RLHK_TUI_MAX_HEIGHT][RLHK_TUI_MAX_WIDTH];
 static char map_route[RLHK_TUI_MAX_HEIGHT][RLHK_TUI_MAX_WIDTH];
-static long map_fscore[RLHK_TUI_MAX_HEIGHT][RLHK_TUI_MAX_WIDTH];
-static long map_gscore[RLHK_TUI_MAX_HEIGHT][RLHK_TUI_MAX_WIDTH];
+static long map_distance[RLHK_TUI_MAX_HEIGHT][RLHK_TUI_MAX_WIDTH];
+static long map_heuristic[RLHK_TUI_MAX_HEIGHT][RLHK_TUI_MAX_WIDTH];
 
 #define IN_MAP(x, y) \
     (x >= 0 && y >= 0 && x < width && y < height)
@@ -74,6 +74,8 @@ map_generate(void)
     }
 }
 
+static int draw_dijkstra;
+
 static void
 map_draw(int px, int py)
 {
@@ -86,7 +88,18 @@ map_draw(int px, int py)
                 rlhk_tui_putc(x, y, TILE_DIRT_C, TILE_DIRT_A);
             else {
                 unsigned mark = map_marked[y][x] ? RLHK_TUI_BR : 0;
-                rlhk_tui_putc(x, y, TILE_EMPTY_C, TILE_EMPTY_A | mark);
+                if (!draw_dijkstra) {
+                    rlhk_tui_putc(x, y, TILE_EMPTY_C, TILE_EMPTY_A | mark);
+                } else {
+                    int c = TILE_EMPTY_C;
+                    unsigned a = TILE_EMPTY_A;
+                    long dist = map_distance[y][x];
+                    if (dist != -1) {
+                        c = dist % 10 + '0';
+                        a = RLHK_TUI_FR | RLHK_TUI_FG | RLHK_TUI_FB;
+                    }
+                    rlhk_tui_putc(x, y, c, a | mark);
+                }
             }
         }
     rlhk_tui_putc(px, py, TILE_PLAYER_C, TILE_PLAYER_A);
@@ -109,18 +122,18 @@ rlhk_algo_map_call(rlhk_algo_map map,
         case RLHK_ALGO_MAP_GET_PASSABLE:
             return game_map[0][y][x] == 0;
         case RLHK_ALGO_MAP_CLEAR_DISTANCE:
-            p = &map_gscore[0][0];
-            for (i = 0; i < sizeof(map_gscore) / sizeof(long); i++)
-                p[i] = LONG_MAX;
+            p = &map_distance[0][0];
+            for (i = 0; i < sizeof(map_distance) / sizeof(long); i++)
+                p[i] = -1;
             return data;
         case RLHK_ALGO_MAP_SET_DISTANCE:
-            return (map_gscore[y][x] = data);
+            return (map_distance[y][x] = data);
         case RLHK_ALGO_MAP_GET_DISTANCE:
-            return map_gscore[y][x];
+            return map_distance[y][x];
         case RLHK_ALGO_MAP_SET_HEURISTIC:
-            return (map_fscore[y][x] = data);
+            return (map_heuristic[y][x] = data);
         case RLHK_ALGO_MAP_GET_HEURISTIC:
-            return map_fscore[y][x];
+            return map_heuristic[y][x];
         case RLHK_ALGO_MAP_SET_GRADIENT:
             return (map_route[y][x] = data);
         case RLHK_ALGO_MAP_MARK_SHORTEST:
@@ -129,7 +142,6 @@ rlhk_algo_map_call(rlhk_algo_map map,
     }
     abort();
 }
-
 
 static void
 find_path(int x0, int y0, int x1, int y1)
@@ -162,6 +174,12 @@ main(void)
         int k;
         int dx = 0;
         int dy = 0;
+
+        {
+            static short buf[256];
+            long i = rlhk_algo_buf_push(buf, sizeof(buf), 0, x, y);
+            rlhk_algo_dijkstra(0, buf, sizeof(buf), i);
+        }
 
         map_draw(x, y);
         if ((k = rlhk_tui_getch()) == -1)
@@ -202,16 +220,17 @@ main(void)
             case ' ':
                 find_path(x, y, width / 2, height / 2);
                 break;
+            case 'x':
+                draw_dijkstra  = !draw_dijkstra;
+                break;
             case RLHK_TUI_VK_SIGINT:
             case 'q':
                 running = 0;
                 break;
         }
         if (!game_map[0][y + dy][x + dx]) {
-            rlhk_tui_putc(x, y, TILE_EMPTY_C, TILE_EMPTY_A);
             x += dx;
             y += dy;
-            rlhk_tui_putc(x, y, TILE_PLAYER_C, TILE_PLAYER_A);
         }
     } while (running);
 

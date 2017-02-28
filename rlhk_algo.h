@@ -148,11 +148,17 @@ RLHK_ALGO_API
 long rlhk_algo_shortest(rlhk_algo_map map, int x0, int y0, int x1, int y1,
                         short *buf, long buflen);
 
+/**
+ * Add an (x, y) coordinate to the buffer (buf).
+ *
+ * The buffer (buf) need not be initialized, but the index (i) must be
+ * 0 on the first call to this function. The buffer size (buflen) is
+ * in bytes.
+ *
+ * Returns the new value for i, or -1 if the buffer is full.
+ */
 RLHK_ALGO_API
-void rlhk_algo_queue_init(short *buf, short buflen);
-
-RLHK_ALGO_API
-int rlhk_algo_queue_push(short *buf, int x, int y);
+long rlhk_algo_buf_push(short *buf, long buflen, long i, int x, int y);
 
 /**
  * Create a Dijkstra map: a map-wide per-tile distance from a set of
@@ -161,15 +167,15 @@ int rlhk_algo_queue_push(short *buf, int x, int y);
  * Basically this is a breadth-first flood-fill of distance and
  * gradient. Results are delivered via RLHK_ALGO_MAP_SET_DISTANCE.
  *
- * The queue (buf) must be initialized with rlhk_algo_queue_init().
- * Use rlhk_algo_queue_push() to add the points of interest before
- * calling this function.
+ * Use rlhk_algo_buf_push() to add the points of interest to the
+ * buffer (buf) before calling this function. The contents of the
+ * buffer will be destroyed by this function.
  *
  * To get an early bailout and only fill the local area to the points
- * of interest, provide only a small queue and let this function
+ * of interest, provide only a small buffer and let this function
  * (safely) run out of memory.
  *
- * Returns 1 on success or 0 if it ran out of queue memory.
+ * Returns 1 on success or 0 if it ran out of buffer memory.
  *
  * Methods used:
  *   RLHK_ALGO_MAP_GET_PASSABLE
@@ -177,7 +183,7 @@ int rlhk_algo_queue_push(short *buf, int x, int y);
  *   RLHK_ALGO_MAP_GET_DISTANCE
  */
 RLHK_ALGO_API
-int rlhk_algo_dijkstra(rlhk_algo_map map, short *buf);
+int rlhk_algo_dijkstra(rlhk_algo_map map, short *buf, long buflen, long i);
 
 /* Implementation */
 #if defined(RLHK_IMPLEMENTATION) || defined(RLHK_ALGO_IMPLEMENTATION)
@@ -330,17 +336,78 @@ rlhk_algo_shortest(rlhk_algo_map m, int x0, int y0, int x1, int y1,
         int x = x1;
         int y = y1;
         int d;
-        do {
+        while (x != x0 || y != y0) {
             d = rlhk_algo_map_call(m, RLHK_ALGO_MAP_MARK_SHORTEST,
                                    x, y, length);
             x += RLHK_ALGO_DX(d);
             y += RLHK_ALGO_DY(d);
             length++;
-        } while (x != x0 || y != y0);
+        }
         rlhk_algo_map_call(m, RLHK_ALGO_MAP_MARK_SHORTEST, x, y, length);
     }
 
     return length;
+}
+
+RLHK_ALGO_API
+long
+rlhk_algo_buf_push(short *buf, long buflen, long i, int x, int y)
+{
+    long size = buflen / (sizeof(*buf) * 2);
+    if (i == size) {
+        return -1;
+    } else {
+        buf[i * 2 + 0] = x;
+        buf[i * 2 + 1] = y;
+        return i + 1;
+    }
+}
+
+RLHK_ALGO_API
+int rlhk_algo_dijkstra(rlhk_algo_map m, short *buf, long buflen, long head)
+{
+    long size = buflen / (sizeof(*buf) * 2);
+    long tail = 0;
+    long i;
+
+    /* Initialize distances. */
+    rlhk_algo_map_call(m, RLHK_ALGO_MAP_CLEAR_DISTANCE, 0, 0, 0);
+    for (i = 0; i < head; i++) {
+        int x = buf[i * 2 + 0];
+        int y = buf[i * 2 + 1];
+        rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_DISTANCE, x, y, 0);
+    }
+
+    /* Breadth-first search. */
+    while (tail != head) {
+        int d;
+        int x = buf[tail * 2 + 0];
+        int y = buf[tail * 2 + 1];
+        long v = rlhk_algo_map_call(m, RLHK_ALGO_MAP_GET_DISTANCE, x, y, 0);
+        tail = (tail + 1) % size;
+        for (d = 0; d < 8; d++) {
+            int cx = x + RLHK_ALGO_DX(d);
+            int cy = y + RLHK_ALGO_DY(d);
+            int p = rlhk_algo_map_call(m, RLHK_ALGO_MAP_GET_PASSABLE,
+                                       cx, cy, (d + 4) % 8);
+            if (p) {
+                long cv = rlhk_algo_map_call(m, RLHK_ALGO_MAP_GET_DISTANCE,
+                                             cx, cy, 0);
+                if (cv == -1) {
+                    long next = (head + 1) % size;
+                    rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_DISTANCE,
+                                       cx, cy, v + 1);
+                    if (next == tail)
+                        return 0; /* out of memory */
+                    buf[head * 2 + 0] = cx;
+                    buf[head * 2 + 1] = cy;
+                    head = next;
+
+                }
+            }
+        }
+    }
+    return 1;
 }
 
 #endif /* RLHK_ALGO_IMPLEMENTATION */
