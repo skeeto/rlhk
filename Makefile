@@ -4,7 +4,6 @@ CFLAGS = -ansi -pedantic -Os -Wall -Wextra -Wno-unused-function -g3
 LDLIBS = -lm
 SUFFIX =
 
-.PHONY : all clean
 .SUFFIXES: .c $(SUFFIX)
 
 all: demo/game$(SUFFIX) demo/rand$(SUFFIX)
