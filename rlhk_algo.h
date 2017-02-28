@@ -49,58 +49,54 @@ enum rlhk_algo_map_method {
     RLHK_ALGO_MAP_GET_PASSABLE,
 
     /**
-     * Set a 32-bit "fscore" for (x, y). The return value is ignored.
+     * Set every tile's 32-bit distance value to -1. The return value
+     * is ignored.
      */
-    RLHK_ALGO_MAP_SET_FSCORE,
+    RLHK_ALGO_MAP_CLEAR_DISTANCE,
 
     /**
-     * Return the previously-set 32-bit "fscore" at (x, y). The "data"
-     * parameter is unused.
-     */
-    RLHK_ALGO_MAP_GET_FSCORE,
-
-    /**
-     * Set every tile's 32-bit "gscore" to the maximum value. The
-     * "data" parameter will be LONG_MAX for your convenience. The
-     * return value is ignored.
-     */
-    RLHK_ALGO_MAP_CLEAR_GSCORE,
-
-    /**
-     * Set a 32-bit "gscore" for (x, y). The return value is ignored.
-     */
-    RLHK_ALGO_MAP_SET_GSCORE,
-
-    /**
-     * Return the previously-set 32-bit "fscore" at (x, y). The "data"
-     * parameter is unused.
-     */
-    RLHK_ALGO_MAP_GET_GSCORE,
-
-    /**
-     * Set an unsigned 3-bit directional value (0-7) at (x, y). A
-     * special direction of "-1" is sometimes used to indicate a lack
-     * of direction or gradient. You are not expected to return this
-     * -1 later and may either discard/ignore it or use the
-     * information as you wish.
-     *
-     * The return value is ignored.
-     */
-    RLHK_ALGO_MAP_SET_ROUTE,
-
-    /**
-     * Sets the path distance to the goal for (x, y). The return value
-     * is ignored. This is used to build a Dijkstra map.
+     * Set a 32-bit distance value for (x, y). The return value is
+     * ignored.
      */
     RLHK_ALGO_MAP_SET_DISTANCE,
 
     /**
-     * Indicates that a tile lies along a shortest path. You *must*
-     * return the previous RLHK_ALGO_MAP_SET_ROUTE data value, unless
-     * that value was -1 in which case the return value is ignored.
-     * The "data" value is the 32-bit distance from the goal (x1, y1).
+     * Return the previously-set 32-bit distance value at (x, y). The
+     * "data" parameter is unused.
      */
-    RLHK_ALGO_MAP_SET_RESULT
+    RLHK_ALGO_MAP_GET_DISTANCE,
+
+    /**
+     * Set a 32-bit heuristic score for (x, y). The return value is
+     * ignored.
+     */
+    RLHK_ALGO_MAP_SET_HEURISTIC,
+
+    /**
+     * Return the previously-set 32-bit heuristic value at (x, y). The
+     * "data" parameter is unused.
+     */
+    RLHK_ALGO_MAP_GET_HEURISTIC,
+
+    /**
+     * Set an unsigned 3-bit directional value (0-7) at (x, y). A
+     * special direction of "-1" is sometimes used to indicate a lack
+     * of direction / gradient. You are not expected to return this -1
+     * later and may either discard/ignore it or use the information
+     * as you wish.
+     *
+     * The return value is ignored.
+     */
+    RLHK_ALGO_MAP_SET_GRADIENT,
+
+    /**
+     * Indicates that a tile lies along a shortest path. You *must*
+     * return the previous RLHK_ALGO_MAP_SET_GRADIENT data value,
+     * unless that value was -1 in which case the return value is
+     * ignored. The "data" value is the 32-bit distance from the goal
+     * (x1, y1).
+     */
+    RLHK_ALGO_MAP_MARK_SHORTEST
 };
 
 /**
@@ -139,40 +135,49 @@ long rlhk_algo_map_call(rlhk_algo_map map,
  * workspace before finding a solution.
  *
  * Methods used:
- *   RLHK_ALGO_MAP_GET_PASSABLE
- *   RLHK_ALGO_MAP_SET_FSCORE
- *   RLHK_ALGO_MAP_GET_FSCORE
- *   RLHK_ALGO_MAP_CLEAR_GSCORE
- *   RLHK_ALGO_MAP_SET_GSCORE
- *   RLHK_ALGO_MAP_GET_GSCORE
- *   RLHK_ALGO_MAP_SET_ROUTE
- *   RLHK_ALGO_MAP_SET_RESULT
+ *   - RLHK_ALGO_MAP_GET_PASSABLE
+ *   - RLHK_ALGO_MAP_CLEAR_DISTANCE
+ *   - RLHK_ALGO_MAP_SET_DISTANCE
+ *   - RLHK_ALGO_MAP_GET_DISTANCE
+ *   - RLHK_ALGO_MAP_SET_HEURISTIC
+ *   - RLHK_ALGO_MAP_GET_HEURISTIC
+ *   - RLHK_ALGO_MAP_SET_GRADIENT
+ *   - RLHK_ALGO_MAP_MARK_SHORTEST
  */
 RLHK_ALGO_API
 long rlhk_algo_shortest(rlhk_algo_map map, int x0, int y0, int x1, int y1,
                         short *buf, long buflen);
 
+RLHK_ALGO_API
+void rlhk_algo_queue_init(short *buf, short buflen);
+
+RLHK_ALGO_API
+int rlhk_algo_queue_push(short *buf, int x, int y);
+
 /**
- * Create a Dijkstra map: a map-wide per-tile distance from some (x, y).
+ * Create a Dijkstra map: a map-wide per-tile distance from a set of
+ * tiles.
  *
  * Basically this is a breadth-first flood-fill of distance and
- * gradient. Results are delivered via RLHK_ALGO_MAP_SET_ROUTE.
+ * gradient. Results are delivered via RLHK_ALGO_MAP_SET_DISTANCE.
  *
- * You must provide some workspace memory (buf) and its size in bytes
- * (buflen) to be used as a queue. The memory need not be initialized.
+ * The queue (buf) must be initialized with rlhk_algo_queue_init().
+ * Use rlhk_algo_queue_push() to add the points of interest before
+ * calling this function.
  *
- * To get an early bailout and only fill the local area, provide a
- * small workspace and let the function (safely) run out of memory.
+ * To get an early bailout and only fill the local area to the points
+ * of interest, provide only a small queue and let this function
+ * (safely) run out of memory.
  *
- * Returns 1 on success or 0 if it ran out of workspace memory.
+ * Returns 1 on success or 0 if it ran out of queue memory.
  *
  * Methods used:
  *   RLHK_ALGO_MAP_GET_PASSABLE
- *   RLHK_ALGO_MAP_SET_ROUTE
+ *   RLHK_ALGO_MAP_SET_DISTANCE
+ *   RLHK_ALGO_MAP_GET_DISTANCE
  */
 RLHK_ALGO_API
-int rlhk_algo_dijkstra(rlhk_algo_map map, int x, int y,
-                       short *buf, long buflen);
+int rlhk_algo_dijkstra(rlhk_algo_map map, short *buf);
 
 /* Implementation */
 #if defined(RLHK_IMPLEMENTATION) || defined(RLHK_ALGO_IMPLEMENTATION)
@@ -207,12 +212,13 @@ rlhk_algo_heap_push(struct rlhk_algo_heap *heap,
     n = heap->count++;
     heap->coords[n * 2 + 0] = x;
     heap->coords[n * 2 + 1] = y;
-    f = rlhk_algo_map_call(map, RLHK_ALGO_MAP_GET_FSCORE, x, y, 0);
+    f = rlhk_algo_map_call(map, RLHK_ALGO_MAP_GET_HEURISTIC, x, y, 0);
     while (n > 0) {
         long p = (n - 1) / 2;
         int px = heap->coords[p * 2 + 0];
         int py = heap->coords[p * 2 + 1];
-        long pf = rlhk_algo_map_call(map, RLHK_ALGO_MAP_GET_FSCORE, px, py, 0);
+        long pf = rlhk_algo_map_call(map, RLHK_ALGO_MAP_GET_HEURISTIC,
+                                     px, py, 0);
         if (f < pf) {
             rlhk_algo_heap_swap(heap, n, p);
             n = p;
@@ -230,14 +236,15 @@ rlhk_algo_heap_pop(struct rlhk_algo_heap *heap, rlhk_algo_map map)
     long d = --heap->count;
     int x = heap->coords[0] = heap->coords[d * 2 + 0];
     int y = heap->coords[1] = heap->coords[d * 2 + 1];
-    long f = rlhk_algo_map_call(map, RLHK_ALGO_MAP_GET_FSCORE, x, y, 0);
+    long f = rlhk_algo_map_call(map, RLHK_ALGO_MAP_GET_HEURISTIC, x, y, 0);
     while (n < heap->count) {
         long an, af, bn, bf;
         an = 2 * n + 1;
         if (an < heap->count) {
             int ax = heap->coords[an * 2 + 0];
             int ay = heap->coords[an * 2 + 1];
-            af = rlhk_algo_map_call(map, RLHK_ALGO_MAP_GET_FSCORE, ax, ay, 0);
+            af = rlhk_algo_map_call(map, RLHK_ALGO_MAP_GET_HEURISTIC,
+                                    ax, ay, 0);
         } else {
             af = LONG_MAX;
         }
@@ -245,7 +252,8 @@ rlhk_algo_heap_pop(struct rlhk_algo_heap *heap, rlhk_algo_map map)
         if (bn < heap->count) {
             int bx = heap->coords[bn * 2 + 0];
             int by = heap->coords[bn * 2 + 1];
-            bf = rlhk_algo_map_call(map, RLHK_ALGO_MAP_GET_FSCORE, bx, by, 0);
+            bf = rlhk_algo_map_call(map, RLHK_ALGO_MAP_GET_HEURISTIC,
+                                    bx, by, 0);
         } else {
             bf = LONG_MAX;
         }
@@ -275,11 +283,11 @@ rlhk_algo_shortest(rlhk_algo_map m, int x0, int y0, int x1, int y1,
     heap->count = 0;
     heap->size = buflen / (sizeof(heap->coords[0]) * 2);
 
-    rlhk_algo_map_call(m, RLHK_ALGO_MAP_CLEAR_GSCORE, 0, 0, LONG_MAX);
-    rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_GSCORE, x0, y0, LONG_MAX);
-    rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_FSCORE, x0, y0,
+    rlhk_algo_map_call(m, RLHK_ALGO_MAP_CLEAR_DISTANCE, 0, 0, 0);
+    rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_DISTANCE, x0, y0, 0);
+    rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_HEURISTIC, x0, y0,
                        RLHK_ALGO_MAX(abs(x0 - x1), abs(y0 - y1)));
-    rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_ROUTE, x0, y0, -1);
+    rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_GRADIENT, x0, y0, -1);
     rlhk_algo_heap_push(heap, m, x0, y0);
 
     while (heap->count) {
@@ -292,7 +300,7 @@ rlhk_algo_shortest(rlhk_algo_map m, int x0, int y0, int x1, int y1,
             break;
         }
         rlhk_algo_heap_pop(heap, m);
-        g = rlhk_algo_map_call(m, RLHK_ALGO_MAP_GET_GSCORE, x, y, 0);
+        g = rlhk_algo_map_call(m, RLHK_ALGO_MAP_GET_DISTANCE, x, y, 0);
         for (d = 0; d < 8; d++) {
             long tentative = g + 1;
             int tx = x + RLHK_ALGO_DX(d);
@@ -302,14 +310,14 @@ rlhk_algo_shortest(rlhk_algo_map m, int x0, int y0, int x1, int y1,
                                    (d + 4) % 8);
             if (!passable)
                 continue;
-            tg = rlhk_algo_map_call(m, RLHK_ALGO_MAP_GET_GSCORE, tx, ty, 0);
-            if (tentative < tg) {
+            tg = rlhk_algo_map_call(m, RLHK_ALGO_MAP_GET_DISTANCE, tx, ty, 0);
+            if (tg == -1 || tentative < tg) {
                 int heuristic = RLHK_ALGO_MAX(abs(tx - x1), abs(ty - y1));
-                rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_ROUTE, tx, ty,
+                rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_GRADIENT, tx, ty,
                                    (d + 4) % 8);
-                rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_GSCORE,
+                rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_DISTANCE,
                                    tx, ty, tentative);
-                rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_FSCORE,
+                rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_HEURISTIC,
                                    tx, ty, tentative + heuristic);
                 if (!rlhk_algo_heap_push(heap, m, tx, ty))
                     return -2; /* out of memory */
@@ -323,12 +331,13 @@ rlhk_algo_shortest(rlhk_algo_map m, int x0, int y0, int x1, int y1,
         int y = y1;
         int d;
         do {
-            d = rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_RESULT, x, y, length);
+            d = rlhk_algo_map_call(m, RLHK_ALGO_MAP_MARK_SHORTEST,
+                                   x, y, length);
             x += RLHK_ALGO_DX(d);
             y += RLHK_ALGO_DY(d);
             length++;
         } while (x != x0 || y != y0);
-        rlhk_algo_map_call(m, RLHK_ALGO_MAP_SET_RESULT, x, y, length);
+        rlhk_algo_map_call(m, RLHK_ALGO_MAP_MARK_SHORTEST, x, y, length);
     }
 
     return length;

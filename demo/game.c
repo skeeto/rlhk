@@ -108,24 +108,22 @@ rlhk_algo_map_call(rlhk_algo_map map,
     switch (method) {
         case RLHK_ALGO_MAP_GET_PASSABLE:
             return game_map[0][y][x] == 0;
-        case RLHK_ALGO_MAP_SET_FSCORE:
-            return (map_fscore[y][x] = data);
-        case RLHK_ALGO_MAP_GET_FSCORE:
-            return map_fscore[y][x];
-        case RLHK_ALGO_MAP_CLEAR_GSCORE:
+        case RLHK_ALGO_MAP_CLEAR_DISTANCE:
             p = &map_gscore[0][0];
             for (i = 0; i < sizeof(map_gscore) / sizeof(long); i++)
                 p[i] = LONG_MAX;
             return data;
-        case RLHK_ALGO_MAP_SET_GSCORE:
+        case RLHK_ALGO_MAP_SET_DISTANCE:
             return (map_gscore[y][x] = data);
-        case RLHK_ALGO_MAP_GET_GSCORE:
+        case RLHK_ALGO_MAP_GET_DISTANCE:
             return map_gscore[y][x];
-        case RLHK_ALGO_MAP_SET_ROUTE:
+        case RLHK_ALGO_MAP_SET_HEURISTIC:
+            return (map_fscore[y][x] = data);
+        case RLHK_ALGO_MAP_GET_HEURISTIC:
+            return map_fscore[y][x];
+        case RLHK_ALGO_MAP_SET_GRADIENT:
             return (map_route[y][x] = data);
-        case RLHK_ALGO_MAP_SET_DISTANCE:            
-            return data;
-        case RLHK_ALGO_MAP_SET_RESULT:
+        case RLHK_ALGO_MAP_MARK_SHORTEST:
             map_marked[y][x] = 1;
             return map_route[y][x];
     }
