@@ -3,7 +3,8 @@
  * This is free and unencumbered software released into the public domain.
  *
  * Provides a portable set of general roguelike algorithms, largely
- * for 2D grid-based maps.
+ * for 2D grid-based maps. In order to use this header you must
+ * typedef rlhk_algo_map and implement rlhk_algo_map_call().
  *
  * For all functions involving gradients or directions, the 8 possible
  * directions are represented using the integers 0 through 7. Counting

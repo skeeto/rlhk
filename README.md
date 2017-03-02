@@ -40,8 +40,12 @@ case for `rlhk_algo_shortest()`.
 
 RLHK, being a header library, is designed to be embedded within your
 program. This reflected through its API, such as not using function
-pointers for callbacks. Its functions are intended in many cases to
-inline naturally with your main program's functions.
+pointers for callbacks. Its functions are intended to inline naturally
+with your program's own functions. For example, a modern optimizing
+compiler will inline parts of your `rlhk_algo_map_call()` directly
+into the library's functions, eliminating many of those function
+calls. Think of it like poor-man's templates but with cleaner
+semantics and faster compilation.
 
 ## Character Set
 
