@@ -199,7 +199,7 @@ int rlhk_algo_dijkstra(rlhk_algo_map map, short *buf, long buflen, long i);
  * Compute the field-of-view from a given tile.
  *
  * This uses a brute force raycast, which has a lot of overlap and is
- * relatively more expensive. But it's precise and doesn't require a
+ * relatively more expensive. But it's simple and doesn't require a
  * work buffer.
  *
  * Methods used:
@@ -426,18 +426,20 @@ int rlhk_algo_dijkstra(rlhk_algo_map m, short *buf, long buflen, long head)
 }
 
 static void
-rlhk_algo_raycast(rlhk_algo_map map, int x0, int y0, int x1, int y1)
+rlhk_algo_raycast(rlhk_algo_map map, int x0, int y0, int x1, int y1, int r)
 {
     int dx = abs(x1 - x0);
     int dy = abs(y1 - y0);
     int sx = x1 < x0 ? -1 : 1;
     int sy = y1 < y0 ? -1 : 1;
+    int r2 = r * r;
 
     if (dx > dy) {
         int d = 2 * dy - dx;
         int x, y = y0;
         for (x = x0; x != x1; x += sx) {
-            if (!RLHK_ALGO_CALL(map, MARK_VISIBLE, x, y, 0))
+            int dist2 = (x - x0) * (x - x0) + (y - y0) * (y - y0);
+            if (!RLHK_ALGO_CALL(map, MARK_VISIBLE, x, y, 0) || dist2 > r2)
                 return;
             if (d > 0) {
                 y += sy;
@@ -449,7 +451,8 @@ rlhk_algo_raycast(rlhk_algo_map map, int x0, int y0, int x1, int y1)
         int d = 2 * dx - dy;
         int y, x = x0;
         for (y = y0; y != y1; y += sy) {
-            if (!RLHK_ALGO_CALL(map, MARK_VISIBLE, x, y, 0))
+            int dist2 = (x - x0) * (x - x0) + (y - y0) * (y - y0);
+            if (!RLHK_ALGO_CALL(map, MARK_VISIBLE, x, y, 0) || dist2 > r2)
                 return;
             if (d > 0) {
                 x += sx;
@@ -461,37 +464,29 @@ rlhk_algo_raycast(rlhk_algo_map map, int x0, int y0, int x1, int y1)
     RLHK_ALGO_CALL(map, MARK_VISIBLE, x1, y1, 0);
 }
 
-static void
-rlhk_algo_cast8(rlhk_algo_map map, int x0, int y0, int x, int y)
-{
-    rlhk_algo_raycast(map, x0, y0, x0 + x, y0 + y);
-    rlhk_algo_raycast(map, x0, y0, x0 + y, y0 + x);
-    rlhk_algo_raycast(map, x0, y0, x0 - y, y0 + x);
-    rlhk_algo_raycast(map, x0, y0, x0 - x, y0 + y);
-    rlhk_algo_raycast(map, x0, y0, x0 - x, y0 - y);
-    rlhk_algo_raycast(map, x0, y0, x0 - y, y0 - x);
-    rlhk_algo_raycast(map, x0, y0, x0 + y, y0 - x);
-    rlhk_algo_raycast(map, x0, y0, x0 + x, y0 - y);
-}
-
 RLHK_ALGO_API
 void
 rlhk_algo_fov(rlhk_algo_map map, int x0, int y0, int r)
 {
-    int x = r;
+    int x = r + 16;
     int y = 0;
     int e = 0;
     while (x >= y) {
-        rlhk_algo_cast8(map, x0, y0, x, y);
+        rlhk_algo_raycast(map, x0, y0, x0 + x, y0 + y, r);
+        rlhk_algo_raycast(map, x0, y0, x0 + y, y0 + x, r);
+        rlhk_algo_raycast(map, x0, y0, x0 - y, y0 + x, r);
+        rlhk_algo_raycast(map, x0, y0, x0 - x, y0 + y, r);
+        rlhk_algo_raycast(map, x0, y0, x0 - x, y0 - y, r);
+        rlhk_algo_raycast(map, x0, y0, x0 - y, y0 - x, r);
+        rlhk_algo_raycast(map, x0, y0, x0 + y, y0 - x, r);
+        rlhk_algo_raycast(map, x0, y0, x0 + x, y0 - y, r);
         if (e <= 0) {
             y++;
             e += 2 * y + 1;
-            rlhk_algo_cast8(map, x0, y0, x, y);
         }
         if (e > 0) {
             x--;
             e -= 2 * x + 1;
-            rlhk_algo_cast8(map, x0, y0, x, y);
         }
     }
 }
