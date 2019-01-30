@@ -24,9 +24,9 @@ with this Makefile.
 
 ## Design Philosophy
 
-RLHK is designed for single-threaded roguelikes that completely block
-on user input. While this isn't *strictly* required, should you want
-to use multiple threads, me mindful that RLHK functions are neither
+RLHK is designed for single-threaded roguelikes that completely blocks
+on user input. While this isn't *strictly* required, should you want to
+use multiple threads be mindful that RLHK functions are neither
 thread-safe nor re-entrant.
 
 For maximum portability, RLHK is written in strict ANSI C89 except for
